@@ -125,6 +125,38 @@
   const redrawAll = () => charts.forEach((r) => r());
   $$("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) redrawAll(); }));
 
+  /* ---------------------------------------------------------------- motion helpers */
+  // Each animation plays once, when its element first scrolls into view, and is skipped
+  // (the final state shows at once) when the reader prefers reduced motion.
+  function onceVisible(node, fn, threshold = .25) {
+    if (!node) return;
+    if (!("IntersectionObserver" in window)) return fn();
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(); } }, { threshold });
+    io.observe(node);
+  }
+  // Calls step(e) with e easing from 0 to 1 over dur milliseconds.
+  function tween(dur, step) {
+    if (reduceMotion) { step(1); return; }
+    const t0 = performance.now();
+    const frame = (t) => {
+      const k = Math.min(1, (t - t0) / dur);
+      step(1 - Math.pow(1 - k, 3));
+      if (k < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+  // Bars carrying data-w grow to that width (in %) once their container is in view.
+  function growBars(scope) {
+    const go = () => requestAnimationFrame(() => $$("[data-w]", scope).forEach((b) => (b.style.width = b.dataset.w + "%")));
+    if (reduceMotion) go(); else onceVisible(scope, go);
+  }
+  // Restarts the CSS animations under node by toggling a class across a reflow.
+  function restart(node, cls) {
+    node.classList.remove(cls);
+    void node.getBoundingClientRect();
+    node.classList.add(cls);
+  }
+
   /* ---------------------------------------------------------------- theme */
   const themeBtn = $("#theme");
   const sysDark = matchMedia("(prefers-color-scheme: dark)");
@@ -153,10 +185,17 @@
     const cells = D.perRepo.filter((r) => r.arm === "te");
     const better = D.settings.filter((s) => D.table1.te[s.id].pass.v > D.table1.default[s.id].pass.v).length;
     const set = (k, html) => { const n = $(`[data-stat="${k}"]`); if (n) n.innerHTML = html; };
-    set("swe-range", range(costs));
-    set("cells", `${cells.filter((r) => r.cost < 0).length}<small> / ${cells.length}</small>`);
-    set("pass", `${better}<small> of ${D.settings.length}</small>`);
-    set("transfer-range", range(D.transfer.map((r) => Math.abs(r.cost.v))));
+    const cheaper = cells.filter((r) => r.cost < 0).length;
+    const transfer = D.transfer.map((r) => Math.abs(r.cost.v));
+    const scaled = (a, e) => a.map((v) => v * e);
+    const fill = (e) => {
+      set("swe-range", range(scaled(costs, e)));
+      set("cells", `${Math.round(cheaper * e)}<small> / ${cells.length}</small>`);
+      set("pass", `${Math.round(better * e)}<small> of ${D.settings.length}</small>`);
+      set("transfer-range", range(scaled(transfer, e)));
+    };
+    fill(reduceMotion ? 1 : 0);
+    onceVisible($(".stats"), () => tween(1200, fill), .5);
   })();
 
   /* ---------------------------------------------------------------- receipt: results at a glance */
@@ -175,8 +214,87 @@
     };
     $('[data-rt-gen="web"]').textContent = range(D.transfer.filter((r) => r.workload === "Web-Bench"));
     $('[data-rt-gen="sec"]').textContent = range(D.transfer.filter((r) => r.workload !== "Web-Bench"));
-    // Let the bars grow in from zero on load.
-    requestAnimationFrame(() => requestAnimationFrame(() => $$("#rt-rows i").forEach((i) => (i.style.width = i.dataset.w + "%"))));
+    // The bars grow and the numbers count up from zero on load.
+    const vals = D.settings.map((s) => D.table1.te[s.id].cost.v);
+    const fill = (e) => $$("#rt-rows .val").forEach((v, i) => (v.textContent = pct(vals[i] * e)));
+    fill(reduceMotion ? 1 : 0);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $$("#rt-rows i").forEach((i) => (i.style.width = i.dataset.w + "%"));
+      tween(1100, fill);
+    }));
+  })();
+
+  /* ---------------------------------------------------------------- Figure 1(a): the billed trajectory */
+  // The paper's schematic, redrawn so the turns can build up one at a time: every row is one
+  // turn's billed context, and each new turn replays all the earlier ones (hatched).
+  (function anatomy() {
+    const A = D.anatomy, box = $("#anatomy-chart");
+    if (!box) return;
+    const INK = "#132031", MUTED = "#5d6978", PREFIX = "#C9CED4";
+    // Same as shade() in the paper's build script: darken toward black, or lighten toward white.
+    const shade = (hex, f) => "#" + [1, 3, 5].map((i) => {
+      const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return Math.round((f >= 0 ? v * (1 - f) : v + (1 - v) * -f) * 255).toString(16).padStart(2, "0");
+    }).join("");
+    const n = A.calls.length;
+    const rows = Array.from({ length: n }, (_, r) => {
+      const segs = [{ w: A.prefix, fill: PREFIX, hatch: r > 0, alpha: r > 0 ? .62 : 1 }];
+      A.calls.forEach(([cat, written, output], t) => {
+        const c = A.colors[cat];
+        if (t < r) segs.push({ w: written + output, fill: shade(c, -.66), hatch: true });
+        if (t === r) {
+          segs.push({ w: written, fill: shade(c, .32), fresh: true });
+          if (output) segs.push({ w: output, fill: shade(c, -.36), fresh: true });
+        }
+      });
+      return segs;
+    });
+    const widest = Math.max(...rows.map((s) => s.reduce((a, x) => a + x.w, 0)));
+    let state = reduceMotion ? "done" : "waiting";
+
+    chart(box, (b, W) => {
+      const narrow = W < 460;
+      const m = { l: narrow ? 30 : 38, r: 6, t: 18, b: 30 };
+      const rh = narrow ? 15 : 18, gap = narrow ? 5 : 7;
+      const H = m.t + n * (rh + gap) + m.b;
+      const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: `anatomy ${state === "waiting" ? "wait" : ""}` }, b);
+      const defs = el("defs", {}, svg);
+      const pat = el("pattern", { id: "hatch", width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
+      el("rect", { width: 1.7, height: 5, fill: "#fff", opacity: .85 }, pat);
+      const x = scale(0, widest * 1.01, m.l, W - m.r);
+      rows.forEach((segs, r) => {
+        const y = m.t + r * (rh + gap);
+        text(svg, m.l - 10, y + rh / 2 + 4, String(r + 1), { "text-anchor": "end", fill: MUTED, "font-size": narrow ? 11 : 12 });
+        const g = el("g", { class: "arow", style: `--i:${r}` }, svg);
+        let left = 0;
+        segs.forEach((s) => {
+          const x0 = x(left), w = Math.max(0, x(left + s.w) - x0 - .8);
+          el("rect", { x: x0, y, width: w, height: rh, fill: s.fill, "fill-opacity": s.alpha || 1, class: s.fresh ? "fresh" : "" }, g);
+          if (s.hatch) el("rect", { x: x0, y, width: w, height: rh, fill: "url(#hatch)" }, g);
+          left += s.w;
+        });
+      });
+      el("line", { x1: m.l - 3, x2: m.l - 3, y1: m.t, y2: m.t + n * (rh + gap) - gap, stroke: INK, "stroke-width": 1.2 }, svg);
+      text(svg, m.l, H - 8, "Context billed at each turn →", { fill: INK, "font-size": 12.5 });
+      text(svg, m.l - 10, m.t - 6, "Turn", { "text-anchor": "end", fill: MUTED, "font-size": 10.5 });
+    });
+
+    // legend
+    const sw = (fill, extra = "") => `<span class="asw" style="background:${fill};${extra}"></span>`;
+    $("#anatomy-legend").innerHTML = Object.entries(A.labels).map(([cat, label]) =>
+      `<li>${sw(A.colors[cat])}${label}</li>`).join("") +
+      `<li>${sw(PREFIX)}Prefix: system + tools</li><li>${sw("#d9dde2", "background-image:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 5px)")}Replayed from earlier turns</li>`;
+
+    const svgNow = () => $("svg", box);
+    function play() {
+      state = "done";
+      const s = svgNow();
+      if (!s) return;
+      s.classList.remove("wait");
+      restart(s, "play");
+    }
+    if (state === "waiting") onceVisible(box, play, .35);
+    $("#anatomy-replay").addEventListener("click", () => { if (!reduceMotion) play(); });
   })();
 
   /* ---------------------------------------------------------------- Table 1 */
@@ -227,15 +345,15 @@
   (function strip() {
     const ARMS = ["rtk", "repomap", "te", "te_rtk", "te_repomap"];
     const box = $("#strip-chart");
-    let render;
+    let render, state = reduceMotion ? "done" : "waiting";
     chart(box, (b, W) => { render = () => { b.innerHTML = ""; draw(b, b.clientWidth); }; draw(b, W); });
     settingListeners.push(() => render && render());
     function draw(b, W) {
       const narrow = W < 440;
-      const m = { l: narrow ? 6 : 108, r: 50, t: 22, b: 40 };
+      const m = { l: narrow ? 6 : 122, r: 50, t: 22, b: 40 };
       const band = narrow ? 62 : 50;
       const H = m.t + ARMS.length * band + m.b;
-      const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b);
+      const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: state === "waiting" ? "slide-wait" : "" }, b);
       const vals = D.perRepo.map((r) => r.cost);
       const lo = Math.floor((Math.min(...vals) - 3) / 10) * 10, hi = Math.ceil((Math.max(...vals) + 3) / 10) * 10;
       const x = scale(lo, hi, m.l, W - m.r);
@@ -260,17 +378,22 @@
         rows.forEach((r) => {
           const y = yc + (rand() - .5) * (narrow ? 26 : band * .5);
           const dim = highlightSetting && r.setting !== highlightSetting;
-          const mk = marker(svg, METHOD[a].marker, x(r.cost), y, highlightSetting && !dim ? 4.6 : 3.8, color, { opacity: dim ? .14 : .9 });
+          const mk = marker(svg, METHOD[a].marker, x(r.cost), y, highlightSetting && !dim ? 4.6 : 3.8, color, { opacity: dim ? .14 : .9, class: "sm", style: `--dx:${(x(0) - x(r.cost)).toFixed(1)}px;--d:${i * 140 + Math.round(rand() * 160)}ms` });
           mk.setAttribute("data-tip", `${sw(METHOD[a].color)}<b>${METHOD[a].label}</b> · ${REPO_NAME[r.repo]}<br>${settingName(r.setting)}<br><span class="tt-v">${pct(r.cost)}</span> cost vs. default`);
         });
         const mean = rows.reduce((s, r) => s + r.cost, 0) / rows.length;
-        el("line", { x1: x(mean), x2: x(mean), y1: yc - 14, y2: yc + 14, stroke: tok("--ink"), "stroke-width": 2, "stroke-linecap": "round", "data-tip": `<b>${METHOD[a].label}</b> mean over 30 cells<br><span class="tt-v">${pct(mean)}</span>` }, svg);
+        el("line", { class: "late", x1: x(mean), x2: x(mean), y1: yc - 14, y2: yc + 14, stroke: tok("--ink"), "stroke-width": 2, "stroke-linecap": "round", "data-tip": `<b>${METHOD[a].label}</b> mean over 30 cells<br><span class="tt-v">${pct(mean)}</span>` }, svg);
         const worse = rows.filter((r) => r.cost > 0).length;
-        text(svg, W - m.r + 8, yc + 4, `${worse}/30`, { "font-size": 11.5, fill: worse ? tok("--ink-2") : tok("--good"), "font-weight": 600 });
+        text(svg, W - m.r + 8, yc + 4, `${worse}/30`, { class: "late", "font-size": 11.5, fill: worse ? tok("--ink-2") : tok("--good"), "font-weight": 600 });
       });
       text(svg, W - m.r + 8, 12, "costlier", { "font-size": 11 });
       bindTips(svg);
     }
+    if (state === "waiting") onceVisible(box, () => {
+      state = "done";
+      const svg = $("svg", box);
+      if (svg) { svg.classList.add("slide-go"); svg.classList.remove("slide-wait"); }
+    }, .4);
     // data table
     const keys = [];
     D.settings.forEach((s) => D.repos.forEach((r) => keys.push([s.id, r])));
@@ -279,8 +402,19 @@
   })();
 
   /* ---------------------------------------------------------------- Figure 3(b): frontier */
+  // On first view the chart tells its story in steps: the default, then reduced effort,
+  // then the fixed plugins, then TokenEconomizer, and finally the frontier line.
   (function frontier() {
     const ARMS = ["medium", "low", "rtk", "repomap", "te", "te_rtk", "te_repomap"];
+    const GROUP = { medium: "effort", low: "effort", rtk: "fixed", repomap: "fixed", te: "te", te_rtk: "te", te_repomap: "te" };
+    const STORY = [
+      "Default execution sits at the origin of every setting.",
+      "Lowering reasoning effort cuts cost, but Pass@1 falls.",
+      "RTK and RepoMap move cost a little, in both directions.",
+      "TokenEconomizer variants cut cost by up to a third, with Pass@1 near or above default.",
+      "The dashed line is the frontier: the cheapest result at each Pass@1 level.",
+    ];
+    const STEP_CLASS = ["", "g-effort", "g-fixed", "g-te", "g-front"];
     const on = Object.fromEntries(ARMS.map((a) => [a, true]));
     const pts = [];
     D.settings.forEach((s) => ARMS.forEach((a) => {
@@ -309,9 +443,13 @@
       legend.append(li);
     });
 
+    // step: -1 before the story plays, 0-4 while it plays, 5 once it is over
+    let step = reduceMotion ? 5 : -1, timers = [], frontClip = null, frontX = [0, 0];
+    const box = $("#frontier-chart"), caption = $("#frontier-story");
     let render;
-    chart($("#frontier-chart"), (b, W) => { render = () => { b.innerHTML = ""; draw(b, b.clientWidth); }; draw(b, W); });
-    settingListeners.push(() => render && render());
+    chart(box, (b, W) => { render = () => { b.innerHTML = ""; draw(b, b.clientWidth); }; draw(b, W); });
+    settingListeners.push(() => { finish(); render && render(); });
+
     function draw(b, W) {
       const m = { l: 48, r: 14, t: 10, b: 42 };
       const H = Math.round(Math.min(360, Math.max(270, W * .72)));
@@ -330,17 +468,162 @@
       text(svg, (m.l + W - m.r) / 2, H - 4, "Cost change vs. default (%)", { "text-anchor": "middle", class: "ink", "font-size": 12.5 });
       const yl = text(svg, 0, 0, "Pass@1 change (points)", { "text-anchor": "middle", class: "ink", "font-size": 12.5, transform: `translate(12 ${(m.t + H - m.b) / 2}) rotate(-90)` });
       yl.removeAttribute("x"); yl.removeAttribute("y");
-      el("path", { d: front.map((p, i) => (i ? "L" : "M") + x(p.x) + "," + y(p.y)).join(""), fill: "none", stroke: tok("--ink-2"), "stroke-width": 1.2, "stroke-dasharray": "5 4", opacity: .7 }, svg);
+      // the frontier draws in from the left, through a clip that widens
+      frontX = [x(front[0].x) - 8, x(front[front.length - 1].x) + 8];
+      frontClip = el("rect", { x: frontX[0], y: 0, height: H, width: step >= 4 ? frontX[1] - frontX[0] : 0 }, el("clipPath", { id: "front-clip" }, el("defs", {}, svg)));
+      el("path", { d: front.map((p, i) => (i ? "L" : "M") + x(p.x) + "," + y(p.y)).join(""), fill: "none", stroke: tok("--ink-2"), "stroke-width": 1.2, "stroke-dasharray": "5 4", opacity: .7, "clip-path": "url(#front-clip)" }, svg);
       const order = [...pts].sort((p, q) => (p.arm.startsWith("te") ? 1 : 0) - (q.arm.startsWith("te") ? 1 : 0));
       order.forEach((p) => {
         if (!on[p.arm]) return;
         const dim = highlightSetting && p.setting !== highlightSetting;
-        const mk = marker(svg, METHOD[p.arm].marker, x(p.x), y(p.y), p.arm.startsWith("te") ? 5.4 : 4.6, tok(METHOD[p.arm].color), { opacity: dim ? .14 : .95 });
+        const mk = marker(svg, METHOD[p.arm].marker, x(p.x), y(p.y), p.arm.startsWith("te") ? 5.4 : 4.6, tok(METHOD[p.arm].color), { opacity: dim ? .14 : .95, class: "pt", "data-g": GROUP[p.arm] });
         mk.setAttribute("data-tip", `${sw(METHOD[p.arm].color)}<b>${METHOD[p.arm].label}</b><br>${settingName(p.setting)}<br>Cost <span class="tt-v">${pct(p.x)}</span> · Pass@1 <span class="tt-v">${sign(p.y)}</span> pts`);
       });
-      marker(svg, "star", x(0), y(0), 6, tok("--surface"), { stroke: tok("--ink"), "stroke-width": 1.4, "data-tip": "<b>Default execution</b><br>high reasoning effort, no external control" });
+      marker(svg, "star", x(0), y(0), 6, tok("--surface"), { stroke: tok("--ink"), "stroke-width": 1.4, class: "star0", "data-tip": "<b>Default execution</b><br>high reasoning effort, no external control" });
+      if (step < 5) svg.classList.add("story", ...STEP_CLASS.slice(1, Math.max(1, step + 1)).filter(Boolean));
       bindTips(svg);
     }
+
+    function setStep(i) {
+      step = i;
+      caption.textContent = STORY[Math.min(i, STORY.length - 1)];
+      caption.classList.remove("in"); void caption.offsetWidth; caption.classList.add("in");
+      const svg = $("svg", box);
+      if (svg && STEP_CLASS[i]) svg.classList.add(STEP_CLASS[i]);
+      if (i === 4) tween(1300, (e) => frontClip && frontClip.setAttribute("width", (frontX[1] - frontX[0]) * e));
+    }
+    function finish() {
+      timers.forEach(clearTimeout); timers = [];
+      if (step >= 5) return;
+      step = 5;
+      caption.textContent = STORY[STORY.length - 1];
+      const svg = $("svg", box);
+      if (svg) { svg.classList.remove("story"); if (frontClip) frontClip.setAttribute("width", frontX[1] - frontX[0]); }
+    }
+    function play() {
+      if (reduceMotion) return;
+      timers.forEach(clearTimeout); timers = [];
+      step = -1; render();
+      [0, 1, 2, 3, 4].forEach((i) => timers.push(setTimeout(() => setStep(i), 300 + i * 1500)));
+      timers.push(setTimeout(finish, 300 + 5 * 1500 + 600));
+    }
+    caption.textContent = STORY[STORY.length - 1];
+    if (step === -1) { caption.textContent = STORY[0]; onceVisible(box, play, .45); }
+    $("#frontier-replay").addEventListener("click", play);
+  })();
+
+  /* ---------------------------------------------------------------- Figure 3(c): savings over the stream */
+  // Cumulative cost change after each task, one line per repository, averaged over the two
+  // Claude Code settings. The lines draw in together, task by task, so the moment each
+  // repository turns cheaper is visible; hovering reads off every repository at one task.
+  (function amortization() {
+    const C = D.amortization, box = $("#amort-chart");
+    if (!box) return;
+    const REPOS = ["django", "matplotlib", "scikit-learn", "sphinx", "sympy", "xarray"];
+    const COLOR = (r) => `--r-${r.replace("scikit-", "sk")}`;
+    const KMAX = Math.max(...REPOS.map((r) => C[r][C[r].length - 1][0]));
+    let k = reduceMotion ? KMAX : 1, state = reduceMotion ? "done" : "waiting", focus = null, refs = null;
+
+    const legend = $("#amort-legend");
+    REPOS.forEach((r) => {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("aria-pressed", "false");
+      b.innerHTML = `<svg viewBox="0 0 16 10" aria-hidden="true"><line x1="1" x2="15" y1="5" y2="5" stroke="var(${COLOR(r)})" stroke-width="2.6" stroke-linecap="round"/></svg>${REPO_NAME[r]}`;
+      b.addEventListener("click", () => {
+        focus = focus === r ? null : r;
+        $$("button", legend).forEach((x) => x.setAttribute("aria-pressed", String(x === b && focus === r)));
+        legend.classList.toggle("has-focus", !!focus);
+        paintFocus();
+      });
+      li.append(b);
+      legend.append(li);
+    });
+
+    chart(box, draw);
+    function draw(b, W) {
+      const m = { l: 46, r: 14, t: 14, b: 42 };
+      const H = Math.round(Math.min(330, Math.max(240, W * .6)));
+      const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b);
+      const x = scale(1, KMAX, m.l, W - m.r), y = scale(-48, 40, H - m.b, m.t);
+      el("rect", { class: "wash", x: m.l, y: y(40), width: W - m.r - m.l, height: y(0) - y(40) }, svg);
+      const g = el("g", { class: "grid" }, svg);
+      for (const t of [-40, -20, 20, 40]) el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t) }, g);
+      for (const t of [-40, -20, 0, 20, 40]) text(svg, m.l - 8, y(t) + 4, t ? sign(t, 0) : "0", { "text-anchor": "end" });
+      for (const t of [1, 10, 20, 30, 40, 50, 60]) text(svg, x(t), H - m.b + 18, String(t), { "text-anchor": "middle" });
+      el("line", { class: "zero", x1: m.l, x2: W - m.r, y1: y(0), y2: y(0) }, svg);
+      text(svg, W - m.r - 6, y(40) + 16, "more expensive", { "text-anchor": "end", "font-size": 11.5 });
+      text(svg, W - m.r - 6, y(-48) - 8, "cheaper", { "text-anchor": "end", "font-size": 11.5, fill: tok("--good") });
+      text(svg, (m.l + W - m.r) / 2, H - 4, "Tasks completed in the repository", { "text-anchor": "middle", class: "ink", "font-size": 12.5 });
+      const yl = text(svg, 0, 0, "Cumulative cost change (%)", { "text-anchor": "middle", class: "ink", "font-size": 12.5, transform: `translate(12 ${(m.t + H - m.b) / 2}) rotate(-90)` });
+      yl.removeAttribute("x"); yl.removeAttribute("y");
+
+      const clipId = "amort-clip";
+      const clip = el("rect", { x: 0, y: 0, height: H, width: x(k) + 2 }, el("clipPath", { id: clipId }, el("defs", {}, svg)));
+      const lines = el("g", { "clip-path": `url(#${clipId})` }, svg);
+      const paths = {};
+      REPOS.forEach((r) => {
+        paths[r] = el("path", { d: C[r].map(([kk, v], i) => (i ? "L" : "M") + x(kk).toFixed(1) + "," + y(v).toFixed(1)).join(""), fill: "none", stroke: tok(COLOR(r)), "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, lines);
+      });
+      const cursor = el("g", { class: "cursor", opacity: state === "playing" ? 1 : 0 }, svg);
+      const cline = el("line", { x1: x(k), x2: x(k), y1: m.t, y2: H - m.b, stroke: tok("--ink-2"), "stroke-width": 1, "stroke-dasharray": "3 3" }, cursor);
+      const ctext = text(cursor, x(k) + 6, m.t + 12, `task ${k}`, { class: "ink", "font-size": 11.5, "font-weight": 600 });
+      const hover = el("g", { opacity: 0 }, svg);
+      const hline = el("line", { y1: m.t, y2: H - m.b, stroke: tok("--ink-2"), "stroke-width": 1 }, hover);
+      const dots = Object.fromEntries(REPOS.map((r) => [r, el("circle", { r: 4, fill: tok(COLOR(r)), stroke: tok("--surface"), "stroke-width": 1.5 }, hover)]));
+      refs = { clip, cline, ctext, cursor, paths, x };
+
+      // crosshair: the nearest task, every repository that reached it
+      const hit = el("rect", { x: m.l, y: m.t, width: W - m.r - m.l, height: H - m.b - m.t, fill: "transparent" }, svg);
+      hit.addEventListener("pointermove", (e) => {
+        if (state === "playing") return;
+        const pt = svg.getBoundingClientRect();
+        const kk = Math.max(1, Math.min(KMAX, Math.round(1 + (e.clientX - pt.left - m.l) / (W - m.r - m.l) * (KMAX - 1))));
+        hover.setAttribute("opacity", 1);
+        hline.setAttribute("x1", x(kk)); hline.setAttribute("x2", x(kk));
+        const rowsAt = REPOS.map((r) => [r, (C[r].find((p) => p[0] === kk) || [])[1]]).filter(([, v]) => v != null).sort((a, b2) => a[1] - b2[1]);
+        REPOS.forEach((r) => {
+          const v = (C[r].find((p) => p[0] === kk) || [])[1];
+          dots[r].setAttribute("opacity", v == null ? 0 : 1);
+          if (v != null) { dots[r].setAttribute("cx", x(kk)); dots[r].setAttribute("cy", y(v)); }
+        });
+        showTip(`<b>After task ${kk}</b><br>` + rowsAt.map(([r, v]) => `${sw(COLOR(r))}${REPO_NAME[r]} <span class="tt-v">${pct(v)}</span>`).join("<br>"), e.clientX, e.clientY);
+      });
+      hit.addEventListener("pointerleave", () => { hover.setAttribute("opacity", 0); hideTip(); });
+      paintFocus();
+    }
+    function paintFocus() {
+      if (!refs) return;
+      REPOS.forEach((r) => {
+        refs.paths[r].setAttribute("opacity", focus && focus !== r ? .18 : 1);
+        refs.paths[r].setAttribute("stroke-width", focus === r ? 3 : 2);
+      });
+    }
+    function setK(kk) {
+      k = kk;
+      if (!refs) return;
+      const px = refs.x(Math.max(1, kk));
+      refs.clip.setAttribute("width", px + 2);
+      refs.cline.setAttribute("x1", px); refs.cline.setAttribute("x2", px);
+      refs.ctext.setAttribute("x", px + 6);
+      refs.ctext.textContent = `task ${Math.round(kk)}`;
+    }
+    function play() {
+      if (reduceMotion) return;
+      state = "playing";
+      if (refs) refs.cursor.setAttribute("opacity", 1);
+      const t0 = performance.now(), dur = 3600;
+      const frame = (t) => {
+        const p = Math.min(1, (t - t0) / dur);
+        setK(1 + (KMAX - 1) * p);
+        if (p < 1) requestAnimationFrame(frame);
+        else { state = "done"; if (refs) refs.cursor.setAttribute("opacity", 0); }
+      };
+      requestAnimationFrame(frame);
+    }
+    if (state === "waiting") onceVisible(box, play, .4);
+    $("#amort-replay").addEventListener("click", play);
   })();
 
   /* ---------------------------------------------------------------- ablation */
@@ -351,8 +634,9 @@
       return `<div class="abl"><h4>${settingName(id)}</h4><div class="abl-row abl-head"><span></span><span></span><span class="v">Δ Cost</span><span class="v">Pass@1</span></div>` +
         `<div class="abl-row"><span>Default</span><span></span><span class="v">—</span><span class="v">${a.default.pass.v.toFixed(1)}</span></div>` +
         ROWS.map(([k, label, c]) =>
-        `<div class="abl-row${k === "te" ? " total" : ""}"><span>${label}</span><span class="bar"><i style="width:${Math.abs(a[k].cost.v) / 35 * 100}%;background:var(${c})"></i></span><span class="v">${pct(a[k].cost.v)}</span><span class="v">${a[k].pass.v.toFixed(1)}</span></div>`).join("") + `</div>`;
+        `<div class="abl-row${k === "te" ? " total" : ""}"><span>${label}</span><span class="bar"><i data-w="${(Math.abs(a[k].cost.v) / 35 * 100).toFixed(1)}" style="background:var(${c})"></i></span><span class="v">${pct(a[k].cost.v)}</span><span class="v">${a[k].pass.v.toFixed(1)}</span></div>`).join("") + `</div>`;
     }).join("");
+    growBars($("#ablation"));
   })();
 
   /* ---------------------------------------------------------------- generalization */
@@ -366,9 +650,10 @@
     $("#gen").innerHTML = groups.map((w) => {
       const rows = D.transfer.filter((r) => r.workload === w);
       return `<article class="gcard reveal"><h3>${META[w].title}</h3><p class="sub">${META[w].sub}</p>${rows.map((r) =>
-        `<div class="grow"><span>${r.agent}</span><span class="bar"><i style="width:${Math.abs(r.cost.v) / 25 * 100}%"></i></span><span class="v">${pct(r.cost.v)}</span></div>` +
+        `<div class="grow"><span>${r.agent}</span><span class="bar"><i data-w="${(Math.abs(r.cost.v) / 25 * 100).toFixed(1)}"></i></span><span class="v">${pct(r.cost.v)}</span></div>` +
         `<p class="grow-q">quality <b>${r.default.v.toFixed(1)}</b> → <b>${r.te.v.toFixed(1)}</b></p>`).join("")}<p class="gfoot">${META[w].foot}</p></article>`;
     }).join("");
+    growBars($("#gen"));
   })();
 
   /* ---------------------------------------------------------------- examples from the paper's appendix */
@@ -384,11 +669,6 @@
       lines.forEach((l) => l.classList.remove("shown"));
       lines.forEach((l, i) => setTimeout(() => l.classList.add("shown"), 250 + i * 330));
     });
-  }
-  function onceVisible(node, fn) {
-    if (!("IntersectionObserver" in window)) return fn();
-    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); fn(); } }, { threshold: .2 });
-    io.observe(node);
   }
 
   const GROUPS = { skill: ["Micro-skill injection", "s1"], prune: ["Tool pruning", "s2"], loop: ["Failure-loop intervention", "s3"] };
@@ -545,7 +825,7 @@
     const max = Math.max(...x.strips.map((s) => s.n));
     const strips = x.strips.map((s) => {
       let cells = "";
-      for (let i = 0; i < max; i++) cells += i < s.n ? `<i class="${s.cells(i)}"></i>` : `<i class="ghost"></i>`;
+      for (let i = 0; i < max; i++) cells += `<i class="${i < s.n ? s.cells(i) : "ghost"}" style="--i:${i}"></i>`;
       const budget = s.budget ? `<span class="budget" style="left:calc(${s.budget / max * 100}% - 1px)"></span><span class="budget-label" style="left:calc(${s.budget / max * 100}% + 5px)">B<sub>i</sub> = ${s.budget}</span>` : "";
       return `<div class="turnstrip${s.budget ? " has-budget" : ""}"><div class="lab"><b>${s.label}</b><span>${s.right}</span></div><div class="cells-wrap"><div class="cells" style="grid-template-columns:repeat(${max},minmax(0,1fr))">${cells}</div>${budget}</div>${s.caption ? `<p class="caption">${esc(s.caption)}</p>` : ""}</div>`;
     }).join("");
@@ -586,7 +866,7 @@
   (function examples() {
     const list = $("#ex-list"), detail = $("#ex-detail");
     const items = [];
-    let group = null, cleanup = () => {}, seen = false;
+    let group = null, cleanup = () => {}, seen = false, currentStart = () => {};
     EXAMPLES.forEach((x, i) => {
       if (x.kind !== group) {
         group = x.kind;
@@ -621,13 +901,18 @@
         if (x.kind === "prune") cleanup = mountPrune(detail, x, true);
         $$(".trace", detail).forEach((t) => !reduceMotion && t.classList.add("playing"));
         play(detail);
+        if (!reduceMotion) $$(".turnstrip", detail).forEach((t) => restart(t, "fill"));
       };
       if (x.kind === "prune") cleanup = mountPrune(detail, x, false);
       const replay = $("[data-replay]", detail);
-      if (replay) replay.addEventListener("click", () => play(detail));
+      if (replay) replay.addEventListener("click", () => {
+        play(detail);
+        if (!reduceMotion) $$(".turnstrip", detail).forEach((t) => restart(t, "fill"));
+      });
       // The first example animates once it scrolls into view; later ones as soon as they are picked.
+      currentStart = start;
       if (seen) start();
-      else { seen = true; if (!reduceMotion) $$(".trace", detail).forEach((t) => t.classList.add("playing")); onceVisible(detail, start); }
+      else { seen = true; if (!reduceMotion) $$(".trace", detail).forEach((t) => t.classList.add("playing")); onceVisible(detail, () => currentStart()); }
     }
     show(0);
   })();
