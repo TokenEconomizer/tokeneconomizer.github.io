@@ -249,11 +249,12 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: .88em; }
   font-size: clamp(19px, 2.3vw, 23px); line-height: 1.35; font-weight: 400; letter-spacing: -.01em;
 }
 
-/* Names are inline blocks in balanced lines, so a wrapped list never leaves one name alone.
-   font-size 0 removes the spaces between items; the negative right margin absorbs the gap
-   after the last name on each line. */
-.authors { margin: 30px -16px 0 0; padding: 0; list-style: none; font-size: 0; text-wrap: balance; }
-.authors li { display: inline-block; margin: 0 16px 6px 0; font-size: 16px; line-height: 1.5; white-space: nowrap; color: var(--ink); }
+/* Authors in two fixed rows (5 + 6 names) wherever they fit; on narrow screens the rows flow
+   together and balance, so no name is left alone on a line. */
+.authors { margin: 30px 0 0; font-size: 15.5px; line-height: 1.75; color: var(--ink); text-wrap: balance; }
+.authors .au { display: inline-block; margin-right: 10px; white-space: nowrap; }
+.authors .au:last-child { margin-right: 0; }
+@media (min-width: 720px) { .authors .au-row { display: block; white-space: nowrap; } }
 .authors sup { color: var(--muted); font-size: 11px; margin-left: 1px; }
 .affils { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 14.5px; }
 .affils sup { font-size: 10px; margin-right: 2px; }
@@ -798,6 +799,10 @@ dialog.zoom button { position: absolute; top: 8px; right: 8px; }
 }
 
 /* ---- responsive ------------------------------------------------------------------- */
+@media (max-width: 1180px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 44px; }
+  .receipt-wrap { max-width: 420px; }
+}
 @media (max-width: 980px) {
   .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 44px; }
   .receipt-wrap { max-width: 420px; }
