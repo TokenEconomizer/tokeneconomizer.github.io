@@ -110,7 +110,8 @@
   const charts = [];
   function chart(container, draw) {
     if (!container) return;
-    const render = () => { container.innerHTML = ""; draw(container, container.clientWidth); };
+    // A chart inside a closed <details> has no width yet; it is drawn when the details open.
+    const render = () => { container.innerHTML = ""; if (container.clientWidth >= 60) draw(container, container.clientWidth); };
     charts.push(render);
     render();
   }
@@ -123,6 +124,7 @@
     resizeTimer = setTimeout(() => charts.forEach((r) => r()), 120);
   });
   const redrawAll = () => charts.forEach((r) => r());
+  $$("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) redrawAll(); }));
 
   /* ---------------------------------------------------------------- theme */
   const themeBtn = $("#theme");
@@ -158,34 +160,24 @@
     set("transfer-range", range(D.transfer.map((r) => Math.abs(r.cost.v))));
   })();
 
-  /* ---------------------------------------------------------------- receipt */
+  /* ---------------------------------------------------------------- receipt: results at a glance */
   (function receipt() {
-    const btns = $$(".receipt .seg button");
-    let first = true;
-    function show(id) {
-      const a = D.ablation[id];
-      btns.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.model === id)));
-      for (const k of ["skills", "pruning", "guard"]) {
-        $(`[data-rt="${k}"]`).textContent = pct(a[k].cost.v);
-        $(`[data-rt-bar="${k}"]`).style.width = (Math.abs(a[k].cost.v) / 35 * 100) + "%";
-      }
-      $('[data-rt="pass-default"]').textContent = a.default.pass.v.toFixed(1);
-      $('[data-rt="pass-te"]').textContent = a.te.pass.v.toFixed(1);
-      const big = $('[data-rt="te"]');
-      const target = a.te.cost.v;
-      if (reduceMotion || !first) { big.textContent = pct(target); return; }
-      first = false;
-      const t0 = performance.now(), dur = 900;
-      const step = (t) => {
-        const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-        big.textContent = pct(target * e);
-        if (k < 1) requestAnimationFrame(step);
-      };
-      requestAnimationFrame(step);
-    }
-    btns.forEach((b) => b.addEventListener("click", () => show(b.dataset.model)));
+    const head = `<div class="rt-row rt-headrow"><span></span><span>Δ cost</span><span>Pass@1</span></div>`;
+    $("#rt-rows").innerHTML = head + D.settings.map((s) => {
+      const te = D.table1.te[s.id], def = D.table1.default[s.id];
+      const up = te.pass.v > def.pass.v;
+      return `<div class="rt-row"><span class="lbl">${s.agent} <small>${s.model}</small></span><span class="val">${pct(te.cost.v)}</span>` +
+        `<span class="rt-p">${def.pass.v.toFixed(1)}→<b class="${up ? "up" : ""}">${te.pass.v.toFixed(1)}</b></span>` +
+        `<span class="rt-bar"><i data-w="${(Math.abs(te.cost.v) / 35 * 100).toFixed(1)}"></i></span></div>`;
+    }).join("");
+    const range = (rows) => {
+      const v = rows.map((r) => Math.abs(r.cost.v));
+      return `${MINUS}${Math.min(...v).toFixed(1)} to ${MINUS}${Math.max(...v).toFixed(1)}%`;
+    };
+    $('[data-rt-gen="web"]').textContent = range(D.transfer.filter((r) => r.workload === "Web-Bench"));
+    $('[data-rt-gen="sec"]').textContent = range(D.transfer.filter((r) => r.workload !== "Web-Bench"));
     // Let the bars grow in from zero on load.
-    requestAnimationFrame(() => requestAnimationFrame(() => show("cc-opus")));
+    requestAnimationFrame(() => requestAnimationFrame(() => $$("#rt-rows i").forEach((i) => (i.style.width = i.dataset.w + "%"))));
   })();
 
   /* ---------------------------------------------------------------- Figure 1(b) */
@@ -208,7 +200,7 @@
 
     let redraw = () => {};
     chart($("#pilot-chart"), (box, W) => {
-      redraw = () => { box.innerHTML = ""; draw(box, box.clientWidth); };
+      redraw = () => { box.innerHTML = ""; if (box.clientWidth >= 60) draw(box, box.clientWidth); };
       draw(box, W);
     });
     function draw(box, W) {
