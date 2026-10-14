@@ -214,7 +214,7 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: .88em; }
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 56px;
+  gap: 40px;
   align-items: center;
   padding-top: 72px;
   padding-bottom: 64px;
@@ -249,8 +249,11 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: .88em; }
   font-size: clamp(19px, 2.3vw, 23px); line-height: 1.35; font-weight: 400; letter-spacing: -.01em;
 }
 
-.authors { margin: 30px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 16px; }
-.authors li { white-space: nowrap; color: var(--ink); }
+/* Names are inline blocks in balanced lines, so a wrapped list never leaves one name alone.
+   font-size 0 removes the spaces between items; the negative right margin absorbs the gap
+   after the last name on each line. */
+.authors { margin: 30px -16px 0 0; padding: 0; list-style: none; font-size: 0; text-wrap: balance; }
+.authors li { display: inline-block; margin: 0 16px 6px 0; font-size: 16px; line-height: 1.5; white-space: nowrap; color: var(--ink); }
 .authors sup { color: var(--muted); font-size: 11px; margin-left: 1px; }
 .affils { margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 14.5px; }
 .affils sup { font-size: 10px; margin-right: 2px; }
