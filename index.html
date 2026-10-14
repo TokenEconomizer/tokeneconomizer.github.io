@@ -81,16 +81,32 @@
       </div>
     </div>
 
-    <div class="receipt-wrap">
-      <article class="receipt" aria-labelledby="rt-title">
-        <header><span class="rt-title" id="rt-title">SWE-BENCH RESULTS</span><span class="rt-tag">vs. default</span></header>
-        <p class="rt-meta">277 tasks · 6 repositories · 3 seeds<br>Mean cost change of TokenEconomizer, overhead included</p>
-        <hr class="rt-rule">
-        <div id="rt-rows"></div>
-        <hr class="rt-rule">
-        <div class="rt-gen"><span class="lbl">Web-Bench</span><span class="val" data-rt-gen="web">−16.0 to −21.2%</span><span class="lbl">Security auditing</span><span class="val" data-rt-gen="sec">−6.4 to −19.6%</span></div>
-      </article>
-    </div>
+    <aside class="glance" aria-label="At a glance">
+      <p class="gl-title">AT A GLANCE</p>
+      <svg class="gl-loop" viewBox="0 0 316 150" role="img" aria-label="The coding agent runs a task; its trace goes to TokenEconomizer, which sends back settings for the next task.">
+        <defs>
+          <marker id="gl-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L8,4L0,8z" class="gl-arrowhead"/></marker>
+        </defs>
+        <path id="gl-up" class="gl-path" d="M112,56 C138,6 178,6 204,56" marker-end="url(#gl-arrow)"/>
+        <path id="gl-down" class="gl-path gl-path-te" d="M204,94 C178,144 138,144 112,94" marker-end="url(#gl-arrow)"/>
+        <text class="gl-lab" x="158" y="14" text-anchor="middle">trace of each task</text>
+        <text class="gl-lab gl-lab-te" x="158" y="146" text-anchor="middle">settings for the next task</text>
+        <rect class="gl-box" x="2" y="46" width="110" height="58" rx="10"/>
+        <text class="gl-name" x="57" y="71" text-anchor="middle">Coding agent</text>
+        <text class="gl-sub" x="57" y="89" text-anchor="middle">unchanged</text>
+        <rect class="gl-box gl-box-te" x="204" y="46" width="110" height="58" rx="10"/>
+        <text class="gl-name gl-name-te" x="259" y="71" text-anchor="middle">TokenEconomizer</text>
+        <text class="gl-sub" x="259" y="89" text-anchor="middle">learns per repository</text>
+        <circle class="gl-dot" r="3.6"><animateMotion dur="2.6s" repeatCount="indefinite" rotate="auto"><mpath href="#gl-up"/></animateMotion></circle>
+        <circle class="gl-dot gl-dot-te" r="3.6"><animateMotion dur="2.6s" begin="1.3s" repeatCount="indefinite"><mpath href="#gl-down"/></animateMotion></circle>
+      </svg>
+      <ul class="gl-levers">
+        <li class="s1"><span class="ix">1</span><span><b>Micro-skills</b> tell the agent what it would otherwise rediscover</span></li>
+        <li class="s2"><span class="ix">2</span><span><b>Tool pruning</b> loads only the tools the repository uses</span></li>
+        <li class="s3"><span class="ix">3</span><span><b>Loop intervention</b> steps in when the agent is stuck</span></li>
+      </ul>
+      <p class="gl-foot">Works with Claude Code, Codex, and GitHub Copilot CLI, with no change to the model or the agent's code.</p>
+    </aside>
   </div>
 </header>
 
@@ -132,11 +148,11 @@
     <p class="eyebrow"><span class="n">1</span> Motivation</p>
     <div class="two-col wide-left">
       <div class="prose">
-        <h2>Coding agents keep paying for the same work</h2>
-        <p>On every turn, a coding agent is billed for its whole context: the system instructions, the descriptions of every tool, and everything that has happened in the task so far. Caching makes this replayed context cheaper, but it is still paid for on every turn.</p>
+        <h2>Coding agents are built for task success, not token efficiency</h2>
+        <p>Claude Code, Codex, and GitHub Copilot CLI are designed to complete tasks, and their growing capability comes at a substantial token cost. On every turn, an agent is billed for its whole context: the system instructions, the descriptions of every tool, and everything that has happened in the task so far. Caching makes this replayed context cheaper, but it is still paid for on every turn.</p>
         <p>Developers also return to the <strong>same codebase</strong> task after task, yet each task starts from scratch. What one task learns about the repository, such as how to run its tests, is rediscovered and paid for again in the next.</p>
       </div>
-      <figure class="fig reveal" style="margin-top:0">
+      <figure class="fig-plain reveal">
         <div class="fig-head"><span class="fig-title">What one task is billed for, turn by turn</span><button class="replay" type="button" id="anatomy-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button></div>
         <div class="chart" id="anatomy-chart" role="img" aria-label="Schematic of ten agent turns. Each turn is billed for the system and tool prefix plus everything earlier in the task, replayed, so the billed context grows with every turn."></div>
         <ul class="alegend" id="anatomy-legend"></ul>
@@ -187,34 +203,33 @@
       <article class="sc s1">
         <header><span class="ix">1</span><div><h3>Micro-skill injection</h3><small>Knowledge · between tasks</small></div></header>
         <ol class="steps">
-          <li><h4>Propose</h4><p>Every \(T\) tasks, an LLM proposer turns digests of recent traces into one-line facts about the repository, each with executable detectors. <span class="pv">\(T=5\)</span></p></li>
+          <li><h4>Propose</h4><p>Every \(T=5\) tasks, an LLM proposer turns digests of recent traces into one-line facts about the repository, each with executable detectors.</p></li>
           <li><h4>Check every trace</h4><p>After each task, the detectors test whether the trace confirmed or contradicted each fact, and whether the task needed it. No model call is involved.</p></li>
-          <li><h4>Inject selectively</h4><p>A fact enters the prompt only after \(n\) tasks with non-overlapping edits confirm it, and only while its need rate, the share of tasks exercising it that needed it, stays at or above \(\rho\). <span class="pv">\(n=3,\ \rho=0.4\)</span></p></li>
-          <li><h4>Retire on contradiction</h4><p>Support decays older evidence by a factor \(\gamma\) per task, and one contradiction counts as \(\lambda\) confirmations. Once the support drops below zero, the fact is retired for good. <span class="pv">\(\gamma=0.8,\ \lambda=5\)</span></p></li>
+          <li><h4>Inject selectively</h4><p>A fact enters the prompt only after \(n=3\) tasks with non-overlapping edits confirm it, and only while its need rate, the share of tasks exercising it that needed it, stays at or above \(\rho=0.4\).</p></li>
+          <li><h4>Retire on contradiction</h4><p>Support decays older evidence by a factor \(\gamma=0.8\) per task, and one contradiction counts as \(\lambda=5\) confirmations. Once the support drops below zero, the fact is retired for good.</p></li>
         </ol>
       </article>
       <article class="sc s2">
         <header><span class="ix">2</span><div><h3>Tool pruning</h3><small>Interface · before each task</small></div></header>
         <ol class="steps">
           <li><h4>Protect the core</h4><p>Tools for shell execution and for reading, writing, and editing files are always kept.</p></li>
-          <li><h4>Mask on evidence</h4><p>A tool is masked once \(k\) consecutive tasks have left it uncalled. <span class="pv">\(k=3\)</span></p></li>
+          <li><h4>Mask on evidence</h4><p>A tool is masked once \(k=3\) consecutive tasks have left it uncalled.</p></li>
           <li><h4>Mask on relevance</h4><p>An LLM judge reviews each never-called tool against the task description, with links to the repository's pull requests, issues, commits, and files masked out.</p></li>
-          <li><h4>Re-audit</h4><p>Every \(R\) tasks, the full catalog is restored, and a tool called during a re-audit is never masked again. <span class="pv">\(R=5\)</span></p></li>
+          <li><h4>Re-audit</h4><p>Every \(R=5\) tasks, the full catalog is restored, and a tool called during a re-audit is never masked again.</p></li>
         </ol>
       </article>
       <article class="sc s3">
         <header><span class="ix">3</span><div><h3>Failure-loop intervention</h3><small>Control · during the rollout</small></div></header>
         <ol class="steps">
-          <li><h4>Learn a turn budget</h4><p>The \(p\)-th percentile of the turn counts of the repository's successful runs so far, times a margin \(\beta\):</p>
-            <div class="sp-eq">\[B_i=\beta\cdot Q_p\bigl(\{|\xi_j| : j&lt;i,\ y_j=1\}\bigr)\]</div>
-            <p style="margin-top:6px"><span class="pv">\(p=90,\ \beta=1.25\)</span></p></li>
+          <li><h4>Learn a turn budget</h4><p>The \(p\)-th percentile (\(p=90\)) of the turn counts of the repository's successful runs so far, times a margin \(\beta=1.25\):</p>
+            <div class="sp-eq">\[B_i=\beta\cdot Q_p\bigl(\{|\xi_j| : j&lt;i,\ y_j=1\}\bigr)\]</div></li>
           <li><h4>Watch cheaply</h4><p>After each tool call, rule-based checks look for repeated failures, dense errors, or a run past \(B_i\). No model call is involved.</p></li>
-          <li><h4>Judge, then redirect</h4><p>An LLM judge reads a digest of recent actions. If it finds the agent stuck with confidence at least \(c\), the agent is redirected with a summary of what it has tried; if the loop recurs, the run ends. <span class="pv">\(c=0.7\)</span></p></li>
-          <li><h4>Backstop</h4><p>At \(\kappa B_i\) turns, a forced stop applies when edit churn, dense errors, and a repeated failure occur together. <span class="pv">\(\kappa=2.5\)</span></p></li>
+          <li><h4>Judge, then redirect</h4><p>An LLM judge reads a digest of recent actions. If it finds the agent stuck with confidence at least \(c=0.7\), the agent is redirected with a summary of what it has tried; if the loop recurs, the run ends.</p></li>
+          <li><h4>Backstop</h4><p>At \(\kappa B_i\) turns, with \(\kappa=2.5\), a forced stop applies when edit churn, dense errors, and a repeated failure occur together.</p></li>
         </ol>
       </article>
     </div>
-    <p class="params-note reveal">Shaded values are the settings used in our experiments. The same values serve every agent, model, and repository; they were fixed in development runs before the main experiments, and the other benchmarks change only what their task streams require. Each one can be changed to suit a deployment: for example, a smaller \(n\) or \(k\), or a smaller \(\beta\) or \(\kappa\), acts sooner and saves more, at a higher risk of a wrong decision.</p>
+    <p class="params-note reveal">The values given are the settings used in our experiments. The same values serve every agent, model, and repository; they were fixed in development runs before the main experiments, and the other benchmarks change only what their task streams require. Each one can be changed to suit a deployment: for example, a smaller \(n\) or \(k\), or a smaller \(\beta\) or \(\kappa\), acts sooner and saves more, at a higher risk of a wrong decision.</p>
   </div>
 </section>
 
@@ -224,7 +239,7 @@
     <p class="eyebrow"><span class="n">3</span> Results on SWE-Bench</p>
     <div class="prose">
       <h2>Consistent savings across the agents, models, and repositories we evaluated</h2>
-      <p class="lede">Five agent–model settings across Claude Code, Codex, and GitHub Copilot CLI run the same 277 SWE-Bench tasks from 6 repositories, in each repository's chronological order, with three seeds. TokenEconomizer lowers mean cost by 18.4–30.9% and improves Pass@1 in four of the five settings. Cost is cache-aware and charges every controller call to the task that triggered it.</p>
+      <p class="lede">Five agent–model settings across Claude Code, Codex, and GitHub Copilot CLI run the same 277 SWE-Bench tasks from 6 repositories, in each repository's chronological order. TokenEconomizer lowers mean cost by 18.4–30.9% and improves Pass@1 in four of the five settings. Cost is cache-aware and charges every controller call to the task that triggered it.</p>
     </div>
 
     <div class="panel reveal explore">
@@ -245,9 +260,11 @@
       <div class="sub">
         <h3>Adaptation expands the frontier</h3>
         <p class="caption" style="margin:0 0 12px">Each method's cost and Pass@1 change from default execution in its setting. TokenEconomizer variants make up every point on the frontier that keeps or improves the default pass rate.</p>
-        <div class="story-bar"><p class="story-cap" id="frontier-story" aria-live="polite"></p><button class="replay" type="button" id="frontier-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button></div>
-        <ul class="legend" id="frontier-legend"></ul>
         <div class="chart" id="frontier-chart" role="img" aria-label="Scatter of cost change against Pass@1 change for every method in five settings. Reduced effort is cheap but loses accuracy; RTK and RepoMap cluster near the default; TokenEconomizer variants sit to the left at or above zero Pass@1 change."></div>
+        <div class="sub-foot">
+          <ul class="legend" id="frontier-legend"></ul>
+          <div class="story-bar"><p class="story-cap" id="frontier-story" aria-live="polite"></p><button class="replay" type="button" id="frontier-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button></div>
+        </div>
       </div>
       </div>
     </div>
@@ -255,7 +272,7 @@
       <div class="panel-head">
         <div>
           <h3>Full results: cost change and Pass@1 by method</h3>
-          <p>Cost is the paired relative change from high-effort default execution; Pass@1 is the absolute rate. All values are percentages; small numbers give the standard deviation across three seeds. Bold marks, per setting, the highest Pass@1 and the lowest cost among methods whose Pass@1 exceeds default execution; faded costs come with a Pass@1 below default.</p>
+          <p>Cost is the paired relative change from high-effort default execution; Pass@1 is the absolute rate. All values are percentages; small numbers give the standard deviation across repeated runs. Bold marks, per setting, the highest Pass@1 and the lowest cost among methods whose Pass@1 exceeds default execution; faded costs come with a Pass@1 below default.</p>
         </div>
       </div>
       <div class="table-tools"><span>Highlight a setting in the table</span><div class="chips" data-setting-chips role="group" aria-label="Agent–model setting to highlight in the table"></div></div>

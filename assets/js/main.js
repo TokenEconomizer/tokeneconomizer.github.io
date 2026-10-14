@@ -196,100 +196,82 @@
     onceVisible($(".stats"), () => tween(1200, fill), .5);
   })();
 
-  /* ---------------------------------------------------------------- receipt: results at a glance */
-  (function receipt() {
-    const head = `<div class="rt-row rt-headrow"><span></span><span>Δ cost</span><span>Pass@1</span></div>`;
-    $("#rt-rows").innerHTML = head + D.settings.map((s) => {
-      const te = D.table1.te[s.id], def = D.table1.default[s.id];
-      const up = te.pass.v > def.pass.v;
-      return `<div class="rt-row"><span class="lbl">${s.agent} <small>${s.model}</small></span><span class="val">${pct(te.cost.v)}</span>` +
-        `<span class="rt-p">${def.pass.v.toFixed(1)}→<b class="${up ? "up" : ""}">${te.pass.v.toFixed(1)}</b></span>` +
-        `<span class="rt-bar"><i data-w="${(Math.abs(te.cost.v) / 35 * 100).toFixed(1)}"></i></span></div>`;
-    }).join("");
-    const range = (rows) => {
-      const v = rows.map((r) => Math.abs(r.cost.v));
-      return `${MINUS}${Math.min(...v).toFixed(1)} to ${MINUS}${Math.max(...v).toFixed(1)}%`;
-    };
-    $('[data-rt-gen="web"]').textContent = range(D.transfer.filter((r) => r.workload === "Web-Bench"));
-    $('[data-rt-gen="sec"]').textContent = range(D.transfer.filter((r) => r.workload !== "Web-Bench"));
-    // The bars grow and the numbers count up from zero on load.
-    const vals = D.settings.map((s) => D.table1.te[s.id].cost.v);
-    const fill = (e) => $$("#rt-rows .val").forEach((v, i) => (v.textContent = pct(vals[i] * e)));
-    fill(reduceMotion ? 1 : 0);
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      $$("#rt-rows i").forEach((i) => (i.style.width = i.dataset.w + "%"));
-      tween(1100, fill);
-    }));
-  })();
-
   /* ---------------------------------------------------------------- Figure 1(a): the billed trajectory */
   // The paper's schematic, redrawn so the turns can build up one at a time: every row is one
   // turn's billed context, and each new turn replays all the earlier ones (hatched).
   (function anatomy() {
     const A = D.anatomy, box = $("#anatomy-chart");
     if (!box) return;
-    const INK = "#132031", MUTED = "#5d6978", PREFIX = "#C9CED4";
-    // Same as shade() in the paper's build script: darken toward black, or lighten toward white.
-    const shade = (hex, f) => "#" + [1, 3, 5].map((i) => {
-      const v = parseInt(hex.slice(i, i + 2), 16) / 255;
-      return Math.round((f >= 0 ? v * (1 - f) : v + (1 - v) * -f) * 255).toString(16).padStart(2, "0");
-    }).join("");
+    const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const hex = (c) => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
+    // mix(c, toward, f): move colour c a fraction f of the way to the colour toward
+    const mix = (c, toward, f) => { const a = rgb(c), b = rgb(toward); return hex(a.map((v, i) => v + (b[i] - v) * f)); };
+    const bgHex = () => { const m = getComputedStyle(document.body).backgroundColor.match(/\d+/g); return hex(m.slice(0, 3).map(Number)); };
+    // The paper's shading (lighten toward white, darken toward black) becomes, on the page, a move
+    // toward the background for replayed history and away from it for what is new on a turn.
+    function palette() {
+      const bg = bgHex(), dark = isDark(), fg = dark ? "#ffffff" : "#000000";
+      return {
+        bg, prefix: mix("#9aa3ad", bg, .45),
+        replayed: (c) => mix(c, bg, .62),
+        written: (c) => mix(c, fg, dark ? .18 : .32),
+        output: (c) => mix(c, bg, dark ? .1 : .36),
+      };
+    }
     const n = A.calls.length;
-    const rows = Array.from({ length: n }, (_, r) => {
-      const segs = [{ w: A.prefix, fill: PREFIX, hatch: r > 0, alpha: r > 0 ? .62 : 1 }];
+    const rowsFor = (P) => Array.from({ length: n }, (_, r) => {
+      const segs = [{ w: A.prefix, fill: P.prefix, hatch: r > 0 }];
       A.calls.forEach(([cat, written, output], t) => {
         const c = A.colors[cat];
-        if (t < r) segs.push({ w: written + output, fill: shade(c, -.66), hatch: true });
+        if (t < r) segs.push({ w: written + output, fill: P.replayed(c), hatch: true });
         if (t === r) {
-          segs.push({ w: written, fill: shade(c, .32), fresh: true });
-          if (output) segs.push({ w: output, fill: shade(c, -.36), fresh: true });
+          segs.push({ w: written, fill: P.written(c), fresh: true });
+          if (output) segs.push({ w: output, fill: P.output(c), fresh: true });
         }
       });
       return segs;
     });
-    const widest = Math.max(...rows.map((s) => s.reduce((a, x) => a + x.w, 0)));
+    const widest = A.prefix + A.calls.reduce((a, [, w, o]) => a + w + o, 0);
     let state = reduceMotion ? "done" : "waiting";
 
     chart(box, (b, W) => {
+      const P = palette(), rows = rowsFor(P), INK = tok("--ink"), MUTED = tok("--muted");
       const narrow = W < 460;
       const m = { l: narrow ? 30 : 38, r: 6, t: 18, b: 30 };
       const rh = narrow ? 15 : 18, gap = narrow ? 5 : 7;
       const H = m.t + n * (rh + gap) + m.b;
       const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: `anatomy ${state === "waiting" ? "wait" : ""}` }, b);
-      const defs = el("defs", {}, svg);
-      const pat = el("pattern", { id: "hatch", width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, defs);
-      el("rect", { width: 1.7, height: 5, fill: "#fff", opacity: .85 }, pat);
+      const pat = el("pattern", { id: "hatch", width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, el("defs", {}, svg));
+      el("rect", { width: 1.7, height: 5, fill: P.bg, opacity: .9 }, pat);
       const x = scale(0, widest * 1.01, m.l, W - m.r);
       rows.forEach((segs, r) => {
         const y = m.t + r * (rh + gap);
         text(svg, m.l - 10, y + rh / 2 + 4, String(r + 1), { "text-anchor": "end", fill: MUTED, "font-size": narrow ? 11 : 12 });
         const g = el("g", { class: "arow", style: `--i:${r}` }, svg);
         let left = 0;
-        segs.forEach((s) => {
-          const x0 = x(left), w = Math.max(0, x(left + s.w) - x0 - .8);
-          el("rect", { x: x0, y, width: w, height: rh, fill: s.fill, "fill-opacity": s.alpha || 1, class: s.fresh ? "fresh" : "" }, g);
-          if (s.hatch) el("rect", { x: x0, y, width: w, height: rh, fill: "url(#hatch)" }, g);
-          left += s.w;
+        segs.forEach((sg) => {
+          const x0 = x(left), w = Math.max(0, x(left + sg.w) - x0 - .8);
+          el("rect", { x: x0, y, width: w, height: rh, fill: sg.fill, class: sg.fresh ? "fresh" : "" }, g);
+          if (sg.hatch) el("rect", { x: x0, y, width: w, height: rh, fill: "url(#hatch)" }, g);
+          left += sg.w;
         });
       });
       el("line", { x1: m.l - 3, x2: m.l - 3, y1: m.t, y2: m.t + n * (rh + gap) - gap, stroke: INK, "stroke-width": 1.2 }, svg);
       text(svg, m.l, H - 8, "Context billed at each turn →", { fill: INK, "font-size": 12.5 });
       text(svg, m.l - 10, m.t - 6, "Turn", { "text-anchor": "end", fill: MUTED, "font-size": 10.5 });
+      // legend, in the same colours
+      const sw = (fill, extra = "") => `<span class="asw" style="background:${fill};${extra}"></span>`;
+      $("#anatomy-legend").innerHTML = Object.entries(A.labels).map(([cat, label]) => `<li>${sw(P.written(A.colors[cat]))}${label}</li>`).join("") +
+        `<li>${sw(P.prefix)}Prefix: system + tools</li>` +
+        `<li>${sw(P.replayed(A.colors.Read), `background-image:repeating-linear-gradient(45deg,${P.bg} 0 2px,transparent 2px 5px)`)}Replayed from earlier turns</li>`;
     });
 
-    // legend
-    const sw = (fill, extra = "") => `<span class="asw" style="background:${fill};${extra}"></span>`;
-    $("#anatomy-legend").innerHTML = Object.entries(A.labels).map(([cat, label]) =>
-      `<li>${sw(A.colors[cat])}${label}</li>`).join("") +
-      `<li>${sw(PREFIX)}Prefix: system + tools</li><li>${sw("#d9dde2", "background-image:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 5px)")}Replayed from earlier turns</li>`;
-
-    const svgNow = () => $("svg", box);
     function play() {
       state = "done";
-      const s = svgNow();
-      if (!s) return;
-      s.classList.remove("wait");
-      restart(s, "play");
+      const svg = $("svg", box);
+      if (!svg) return;
+      svg.classList.remove("wait");
+      restart(svg, "play");
     }
     if (state === "waiting") onceVisible(box, play, .35);
     $("#anatomy-replay").addEventListener("click", () => { if (!reduceMotion) play(); });
@@ -453,7 +435,7 @@
 
     function draw(b, W) {
       const m = { l: 48, r: 14, t: 10, b: 42 };
-      const H = Math.round(Math.min(360, Math.max(270, W * .72)));
+      const H = W >= 420 ? 312 : Math.round(Math.max(260, W * .8));
       const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b);
       const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
       const x0 = Math.floor((Math.min(...xs) - 3) / 10) * 10, x1 = Math.max(10, Math.ceil((Math.max(...xs) + 3) / 10) * 10);
