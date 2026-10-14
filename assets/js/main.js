@@ -186,13 +186,11 @@
     const better = D.settings.filter((s) => D.table1.te[s.id].pass.v > D.table1.default[s.id].pass.v).length;
     const set = (k, html) => { const n = $(`[data-stat="${k}"]`); if (n) n.innerHTML = html; };
     const cheaper = cells.filter((r) => r.cost < 0).length;
-    const transfer = D.transfer.map((r) => Math.abs(r.cost.v));
     const scaled = (a, e) => a.map((v) => v * e);
     const fill = (e) => {
       set("swe-range", range(scaled(costs, e)));
       set("cells", `${Math.round(cheaper * e)}<small> / ${cells.length}</small>`);
       set("pass", `${Math.round(better * e)}<small> of ${D.settings.length}</small>`);
-      set("transfer-range", range(scaled(transfer, e)));
     };
     fill(reduceMotion ? 1 : 0);
     onceVisible($(".stats"), () => tween(1200, fill), .5);
@@ -320,25 +318,28 @@
       html += `<tr class="${cls}"><td>${name}</td>${D.settings.map((s) => cell(D.table1[k][s.id].cost, "cost", s.id) + cell(D.table1[k][s.id].pass, "pass", s.id)).join("")}</tr>`;
     });
     $("#table1").innerHTML = html + "</tbody></table>";
-    settingListeners.push((id) => $$("#table1 [data-col]").forEach((c) => c.classList.toggle("col-hi", c.dataset.col === id)));
+    settingListeners.push((id) => {
+      $("#table1 table").classList.toggle("has-hi", !!id);
+      $$("#table1 [data-col]").forEach((c) => c.classList.toggle("col-hi", c.dataset.col === id));
+    });
   })();
 
   /* ---------------------------------------------------------------- setting chips */
+  // Two chip groups, one beside the charts and one above the table, share one selection.
   (function chips() {
-    const box = $("#setting-chips");
-    const make = (id, html) => {
+    const groups = $$("[data-setting-chips]");
+    const options = [[null, "All settings"], ...D.settings.map((st) => [st.id, `${st.agent} <small>${st.model}</small>`])];
+    groups.forEach((box) => options.forEach(([id, html]) => {
       const b = document.createElement("button");
-      b.type = "button"; b.className = "chip"; b.innerHTML = html;
+      b.type = "button"; b.className = "chip"; b.innerHTML = html; b.dataset.setting = id || "";
       b.setAttribute("aria-pressed", String(id === null));
       b.addEventListener("click", () => {
         highlightSetting = id;
-        $$(".chip", box).forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
+        $$("[data-setting-chips] .chip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.setting === (id || ""))));
         settingListeners.forEach((f) => f(id));
       });
       box.append(b);
-    };
-    make(null, "All settings");
-    D.settings.forEach((s) => make(s.id, `${s.agent} <small>${s.model}</small>`));
+    }));
   })();
 
   /* ---------------------------------------------------------------- Figure 3(a): per-repository strip */
@@ -403,7 +404,7 @@
 
   /* ---------------------------------------------------------------- Figure 3(b): frontier */
   // On first view the chart tells its story in steps: the default, then reduced effort,
-  // then the fixed plugins, then TokenEconomizer, and finally the frontier line.
+  // then the fixed strategies, then TokenEconomizer, and finally the frontier line.
   (function frontier() {
     const ARMS = ["medium", "low", "rtk", "repomap", "te", "te_rtk", "te_repomap"];
     const GROUP = { medium: "effort", low: "effort", rtk: "fixed", repomap: "fixed", te: "te", te_rtk: "te", te_repomap: "te" };
@@ -675,11 +676,12 @@
   const EXAMPLES = [
     {
       id: "a", kind: "skill", repo: "sympy", setting: "Claude Code, Opus 4.8", short: "Opus 4.8", badge: ["on", "Injected on tasks 10–60"],
+      summary: "Without help, the agent first tries pytest, which this sympy environment does not have, and then a runner that runs no tests, before it finds one that works. TokenEconomizer learns that sympy's own test runner works and tells the agent before each task.",
       skill: "Besides pytest, tests can be run through the native runner `python -c \"import sympy; sympy.test('sympy/.../test_x.py')\"` or `python -m sympy.utilities.runtests`.",
       det: [["scope", "ran_tests"], ["confirm", "sympy\\.utilities\\.runtests|sympy\\.test\\("], ["contradict", "–"], ["need", "sympy_test_runner (sympy\\.utilities\\.runtests|sympy\\.test\\( in a command)"]],
       span: "60 tasks",
-      life: [["proposed", "after task 9, citing tasks 5 and 6"], ["activated", "on admission: confirmed on tasks 3, 5, and 6, whose edits do not overlap (matexpr.py | permutations.py | sparse.py); need 4/4"], ["injected", "tasks 10–60"], ["end", "active; 10 confirmations and no contradiction over 10 exercised tasks"]],
-      why: "On task 11, default execution tries pytest, which is not installed, and then the module runner, before it finds the native runner. With the skill, the agent runs the native runner directly and finishes in 11 turns instead of 15.",
+      life: [["proposed", "after task 9, based on tasks 5 and 6"], ["activated", "right away: checking back over earlier tasks found confirmations on tasks 3, 5, and 6, which edited different files (matexpr.py, permutations.py, sparse.py), and it passed the need check (4 of 4 tasks)"], ["injected", "into tasks 10–60"], ["outcome", "still active at the end: confirmed on all 10 tasks that exercised it, never contradicted"]],
+      result: "With the skill, the agent runs sympy's own test runner directly and finishes in 11 turns instead of 15.",
       tracesTitle: "Task 11 (sympy-13615), without and with the skill",
       traces: [
         { title: "Default", turns: "15 turns", lines: [
@@ -701,11 +703,12 @@
     },
     {
       id: "b", kind: "skill", repo: "sphinx", setting: "Claude Code, Sonnet 5", short: "Sonnet 5", badge: ["on", "Injected on tasks 7–44"],
+      summary: "The skill tells the agent how issues in this repository are usually reproduced: build a minimal Sphinx project and run it. Tasks 1 and 3 confirmed it, but both edited a file named conf.py, so the controller waited for tasks that edited other files before injecting it.",
       skill: "The canonical way to reproduce an issue in this repo is to build a minimal Sphinx project under /tmp with a conf.py and run `python -m sphinx -b <builder> <srcdir> <outdir>`.",
       det: [["scope", "python -m sphinx -b"], ["confirm", "python -m sphinx -b \\S+ \\S+ \\S+"], ["contradict", "–"], ["need", "–"]],
       span: "44 tasks",
-      life: [["proposed", "after task 4, citing tasks 1–3"], ["candidate", "confirmed on tasks 1 and 3, but both edited a file named conf.py, so the two count once toward the 3 confirmations with non-overlapping edits"], ["activated", "after task 6, once tasks 5 (inheritance_diagram.py) and 6 (other.py, toctree.py) confirm it; need 4/4"], ["injected", "tasks 7–44"], ["end", "active; 32 confirmations and no contradiction over 32 exercised tasks"]],
-      why: "The non-overlap rule held the skill back until tasks editing different files confirmed it, so its evidence reflects the repository rather than one recurring file. On task 15, the agent reproduces the issue with a minimal project and finishes in 10 turns instead of 11.",
+      life: [["proposed", "after task 4, based on tasks 1–3"], ["waiting", "tasks 1 and 3 confirmed it, but both edited a file named conf.py, so together they count as one of the 3 confirmations needed"], ["activated", "after task 6, once tasks 5 (inheritance_diagram.py) and 6 (other.py, toctree.py) confirmed it; it passed the need check (4 of 4 tasks)"], ["injected", "into tasks 7–44"], ["outcome", "still active at the end: confirmed on all 32 tasks that exercised it, never contradicted"]],
+      result: "With the skill, the agent reproduces the issue with a minimal project and finishes in 10 turns instead of 11.",
       tracesTitle: "Task 15 (sphinx-7889), without and with the skill",
       traces: [
         { title: "Default", turns: "11 turns", lines: [
@@ -725,12 +728,12 @@
       ],
     },
     {
-      id: "c", kind: "skill", repo: "sympy", setting: "Claude Code, Sonnet 5", short: "Sonnet 5", badge: ["off", "Retired after one injection"], stakes: true,
+      id: "c", kind: "skill", repo: "sympy", setting: "Claude Code, Sonnet 5", short: "Sonnet 5", badge: ["off", "Wrong, retired after one use"], stakes: true,
+      summary: "A wrong fact gets caught. The skill tells the agent to run tests with pytest, but this environment has no pytest. Its early confirmations came only from the agent typing the pytest command, which its detector matched. The first task that received it hit the missing module, the controller counted that as a contradiction, and the skill was retired after one injection.",
       skill: "Run sympy tests with `python -m pytest sympy/<subpackage>/tests/test_<name>.py -q`; this is the canonical test invocation for this repo.",
       det: [["scope", "pytest_module_used (python -m pytest sympy/.*test_.*\\.py in a command)"], ["confirm", "python -m pytest sympy/.*test_.*\\.py"], ["contradict", "ImportError|ModuleNotFoundError|no tests ran|error: unrecognized"], ["need", "–"]],
       span: "60 tasks",
-      life: [["proposed", "after task 4, citing tasks 2 and 4"], ["confirmed", "on admission: tasks 2, 3, and 4, whose edits do not overlap (function.py | matexpr.py, summations.py | permutations.py)"], ["activated", "after task 5, once the need gate has 4 exercised tasks"], ["injected", "task 6 only"], ["retired", "after task 6, whose trace contradicts it, which drives its support below zero"], ["end", "retired; 40 confirmations and 11 contradictions over 51 exercised tasks"]],
-      why: "The instruction is wrong for this environment, which has no pytest. It was activated because its confirming detector matches the pytest command itself rather than a passing result. The first task to receive it tried the command and then probed for the module; the probe's ModuleNotFoundError matched the contradicting detector, and, weighted by λ = 5, that single contradiction outweighed the decayed confirmations.",
+      life: [["proposed", "after task 4, based on tasks 2 and 4"], ["confirmed", "right away, on tasks 2, 3, and 4, which edited different files"], ["activated", "after task 5, once 4 tasks had exercised it, the minimum for the need check"], ["injected", "into task 6 only"], ["retired", "after task 6, whose ModuleNotFoundError contradicted it; one contradiction counts as λ = 5 confirmations, so its support fell below zero"], ["outcome", "over the whole stream, 51 tasks exercised it: 40 confirmed it and 11 contradicted it"]],
       tracesTitle: "Task 6 (sympy-13031), the only task that received the skill",
       traces: [
         { title: "TokenEconomizer", turns: "15 turns", te: true, lines: [
@@ -744,38 +747,38 @@
       ],
     },
     {
-      id: "d", kind: "skill", repo: "sympy", setting: "Claude Code, Opus 4.8", short: "Opus 4.8", badge: ["held", "Withheld by the need gate"], stakes: true,
+      id: "d", kind: "skill", repo: "sympy", setting: "Claude Code, Opus 4.8", short: "Opus 4.8", badge: ["held", "True but not needed"], stakes: true,
+      summary: "A true fact that is not worth its tokens. It says no reinstall is needed after editing sympy, and that holds, but the agent never tries to reinstall anyway. Injecting it would only add tokens to every turn, so it is never injected.",
       skill: "The sympy package is imported from the in-tree source, so edits to .py files take effect immediately; no `pip install`/`setup.py develop` reinstall is required before testing.",
       det: [["scope", "ran_tests"], ["confirm", "python -m pytest\\s+sympy/|sympy\\.test\\("], ["contradict", "pip install|setup\\.py\\s+(develop|install)"], ["need", "reinstall_invoked (pip install|setup\\.py\\s+(develop|install) in a command)"]],
       span: "60 tasks",
-      life: [["proposed", "after task 9, citing tasks 3 and 6"], ["confirmed", "on admission: tasks 3, 5, and 6, whose edits do not overlap (matexpr.py | permutations.py | sparse.py); need 0/4"], ["activated", "never: no exercised task ever reinstalls, so the need rate stays 0 < 0.4"], ["end", "not activated; 10 confirmations, no contradiction, need 0/10"]],
-      why: "Its confirmations hold, but the agent never attempts the reinstall it warns against, so injecting it would add its tokens to every turn without preventing any waste.",
+      life: [["proposed", "after task 9, based on tasks 3 and 6"], ["confirmed", "right away, on tasks 3, 5, and 6, which edited different files"], ["held back", "on every task: none of the tasks that exercised it tried to reinstall, so its need rate stayed at 0, below ρ = 0.4"], ["outcome", "never injected: confirmed on 10 tasks, never contradicted, needed by none"]],
     },
     {
-      id: "e", kind: "skill", repo: "sphinx", setting: "Claude Code, Sonnet 5", short: "Sonnet 5", badge: ["cand", "Never activated"], stakes: true,
+      id: "e", kind: "skill", repo: "sphinx", setting: "Claude Code, Sonnet 5", short: "Sonnet 5", badge: ["cand", "Not enough evidence"], stakes: true,
+      summary: "Evidence from one file is not enough. The skill names the test file for one module. It was confirmed 7 times, but all of those tasks except one edited a file named python.py, so they say more about that module than about the repository. It never reached 3 confirmations from tasks that edited different files.",
       skill: "The canonical test file for sphinx/domains/python.py is tests/test_domain_py.py; Python-domain edits are verified with `python -m pytest tests/test_domain_py.py`.",
       det: [["scope", "domains/python\\.py|test_domain_py"], ["confirm", "test_domain_py\\.py"], ["contradict", "test_domain_py\\.py.{0,20}(FAILED|ERROR|not found)"], ["need", "–"]],
       span: "44 tasks",
-      life: [["proposed", "after task 34, citing tasks 30 and 34"], ["candidate", "confirmed on tasks 30, 33, 34, 38, 39, 40, and 43, which edited python.py | docfields.py | python.py | __init__.py, inspect.py, python.py | python.py | python.py | python.py"], ["end", "candidate; 7 confirmations, only 2 with non-overlapping edits"]],
-      why: "Every confirmation except one comes from a task that edited a file named python.py, so the evidence reflects one module that recurs across tasks rather than a practice that holds across the repository.",
+      life: [["proposed", "after task 34, based on tasks 30 and 34"], ["confirmed on", "tasks 30, 33, 34, 38, 39, 40, and 43; every one except task 33 (docfields.py) edited a file named python.py"], ["outcome", "never injected: 7 confirmations, but only 2 count as coming from tasks with non-overlapping edits, short of the 3 required"]],
     },
     {
       id: "f", kind: "prune", repo: "django", setting: "Claude Code, Sonnet 5", short: "Claude Code", badge: ["s2", "19 of 23 tools masked"],
-      intro: "Over the first four tasks of the Django stream, the judge masks 19 of the 23 tools from task 2 on, and by task 4 the same 19 are masked on evidence, each unused for three tasks. Only Bash, Edit, Read, and Write stay loaded, so from task 2 on, the first request of each task falls from about 42–43k to about 15–16k prompt tokens.",
+      intro: "Claude Code loads 23 tools on every turn. From task 2 of the Django stream on, 19 of them are masked: first because the LLM judge finds them irrelevant to the task, and by task 4 also because none was called in three tasks. Only Bash, Edit, Read, and Write stay loaded, so the first request of each task falls from about 42–43k to about 15–16k prompt tokens.",
       kept: ["Bash", "Edit", "Read", "Write"],
       masked: ["AskUserQuestion", "CronCreate", "CronDelete", "CronList", "EnterPlanMode", "EnterWorktree", "ExitPlanMode", "ExitWorktree", "NotebookEdit", "ScheduleWakeup", "Skill", "Task", "TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskStop", "TaskUpdate", "Workflow"],
-      tasks: [["django-10097", 42866, 42866, "all 23 tools loaded"], ["django-10554", 16295, 43351, "the judge masks 19 tools"], ["django-10880", 15003, 42059, "the judge masks the same 19"], ["django-10914", 15299, 42355, "evidence masks the same 19, each unused for 3 tasks"]],
+      tasks: [["django-10097", 42866, 42866, "No history yet, so all 23 tools are loaded"], ["django-10554", 16295, 43351, "Before the task, the LLM judge masks 19 tools it finds irrelevant"], ["django-10880", 15003, 42059, "The judge masks the same 19"], ["django-10914", 15299, 42355, "The same 19 are now also masked on evidence: none was called in the last 3 tasks"]],
     },
     {
       id: "g", kind: "prune", repo: "django", setting: "Copilot CLI, Sonnet 5", short: "Copilot CLI", badge: ["s2", "10 of 19 tools masked"],
-      intro: "The same procedure on Copilot CLI masks 10 of its 19 tools, so from task 2 on, the first request of each task falls from about 25–26k to about 10–11k prompt tokens.",
+      intro: "The same procedure on Copilot CLI, which loads 19 tools, masks 10 of them from task 2 on. The first request of each task falls from about 25–26k to about 10–11k prompt tokens.",
       kept: ["bash", "create", "edit", "glob", "grep", "list_bash", "read_bash", "stop_bash", "view"],
       masked: ["factories_manage", "fetch_copilot_cli_documentation", "list_agents", "read_agent", "run_factory", "session_store_sql", "skill", "sql", "task", "write_agent"],
-      tasks: [["django-10097", 25765, 25760, "all 19 tools loaded"], ["django-10554", 11347, 26249, "the judge masks 10 tools"], ["django-10880", 10066, 24969, "the judge masks the same 10"], ["django-10914", 10343, 25248, "evidence masks the same 10, each unused for 3 tasks"]],
+      tasks: [["django-10097", 25765, 25760, "No history yet, so all 19 tools are loaded"], ["django-10554", 11347, 26249, "Before the task, the LLM judge masks 10 tools it finds irrelevant"], ["django-10880", 10066, 24969, "The judge masks the same 10"], ["django-10914", 10343, 25248, "The same 10 are now also masked on evidence: none was called in the last 3 tasks"]],
     },
     {
       id: "h", kind: "loop", repo: "sphinx", setting: "Claude Code, Opus 4.8", short: "Opus 4.8", badge: ["s3", "Redirect · 31 vs. 42 turns"], task: "sphinx-11445",
-      intro: "After 18 turns with 11 edits to one file, no test run, and the same failure three times, the trace judge finds the agent stuck and redirects it. The agent then tests its change, the tests pass, and it finishes in 31 turns; default execution passes after 42.",
+      intro: "The agent keeps editing the same file without running a test. After 18 turns, with 11 edits and the same failure three times, the LLM judge decides the agent is stuck and redirects it with a summary of what it has tried. The agent then runs the tests, they pass, and it finishes in 31 turns; default execution passes after 42.",
       strips: [
         { label: "Default", right: "42 turns · passes", n: 42, cells: () => "", caption: "18 edits to sphinx/util/rst.py and 3 test runs before the task passes" },
         { label: "TokenEconomizer", right: "31 turns · finishes", n: 31, cells: (i) => (i < 18 ? "loop" : "after") },
@@ -793,7 +796,7 @@
     },
     {
       id: "i", kind: "loop", repo: "xarray", setting: "Claude Code, Opus 4.8", short: "Opus 4.8", badge: ["s3", "Forced stop · 7 turns sooner"], task: "xarray-6798",
-      intro: "The turn budget learned for this stream is 10.25 turns. Past 2.5 times the budget, with edit churn, dense errors, and a repeated failure all present, the guard stops the run. The task fails, as it does under default execution, but 7 turns sooner.",
+      intro: "A task that default execution also fails. The turn budget learned for this repository is 10.25 turns. Once the run is past 2.5 times the budget, with repeated edits, dense errors, and a repeated failure all present, the controller stops it. The task fails either way, but TokenEconomizer stops 7 turns sooner.",
       strips: [
         { label: "Default", right: "32 turns · fails", n: 32, cells: () => "", caption: "6 edits to xarray/core/coordinates.py and 3 test runs; the task still fails" },
         { label: "TokenEconomizer", right: "25 turns · fails", n: 25, cells: (i) => (i === 24 ? "mark" : i >= 10 ? "loop" : ""), budget: 10.25 },
@@ -813,12 +816,14 @@
     `<div class="ex-h ex-h-row"><span>${esc(title)}</span><button class="replay" type="button" data-replay>${REPLAY_ICON}Replay</button></div><div class="traces">${traces.map(traceHTML).join("")}</div>`;
 
   function skillHTML(x) {
-    return `<div class="skillbox"><span class="tag">MICRO-SKILL${x.stakes ? " · HIGH-STAKES" : ""}</span>${esc(x.skill)}</div>` +
-      `<h4 class="ex-h">Detectors, as the proposer wrote them</h4>` +
-      `<dl class="detectors">${x.det.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` +
-      `<h4 class="ex-h">Lifecycle over the stream's ${x.span}</h4>` +
+    return `<p class="ex-intro">${esc(x.summary)}</p>` +
+      `<div class="skillbox" style="margin-top:14px"><span class="tag">MICRO-SKILL${x.stakes ? " · HIGH-STAKES" : ""}</span>${esc(x.skill)}</div>` +
+      (x.traces ? tracesBlock(x.tracesTitle, x.traces) + (x.result ? `<p class="ex-result">${esc(x.result)}</p>` : "") : "") +
+      `<h4 class="ex-h">How the controller handled it, over the stream's ${x.span}</h4>` +
       `<ul class="timeline">${x.life.map(([k, v]) => `<li><span>${k}</span><span>${esc(v)}</span></li>`).join("")}</ul>` +
-      `<p class="why">${esc(x.why)}</p>` + (x.traces ? tracesBlock(x.tracesTitle, x.traces) : "");
+      `<details class="ex-more"><summary>Detectors, as the proposer wrote them</summary>` +
+      `<p>Each skill comes with patterns that the controller matches against every later trace: <b>scope</b> says whether the task ran into the situation at all, <b>confirm</b> and <b>contradict</b> say whether the trace agreed with the skill, and <b>need</b> says whether the task needed it. A dash means the proposer gave none.</p>` +
+      `<dl class="detectors">${x.det.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></details>`;
   }
 
   function loopHTML(x) {
@@ -854,7 +859,7 @@
         return `<div class="taskbar${i === step ? " current" : ""}"><span class="tn">Task ${i + 1}<small>${id}</small></span>` +
           `<span class="bars" title="${esc(note)}"><i class="def" style="width:${def / max * 100}%"></i><i class="te" style="width:${shown ? te / max * 100 : 0}%"></i></span>` +
           `<span class="tv">${shown ? te.toLocaleString("en-US") : "·"}<small>(${def.toLocaleString("en-US")})</small></span></div>`;
-      }).join("") + `<p class="caption" style="margin:6px 0 0">Task ${step + 1}: ${esc(x.tasks[step][3])}.</p>` +
+      }).join("") + `<p class="caption" style="margin:6px 0 0"><b>Task ${step + 1}.</b> ${esc(x.tasks[step][3])}.</p>` +
         `<div class="chips" style="margin-top:10px" role="group" aria-label="Task">${x.tasks.map((t, i) => `<button type="button" class="chip" data-step="${i}" aria-pressed="${i === step}">Task ${i + 1}</button>`).join("")}</div>`;
       $$("[data-step]", bars).forEach((b) => b.addEventListener("click", () => { stop(); step = +b.dataset.step; render(); }));
     }
