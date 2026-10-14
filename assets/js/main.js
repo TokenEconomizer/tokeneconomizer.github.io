@@ -606,6 +606,8 @@
         if (e.key === "End") { e.preventDefault(); select(list[list.length - 1], true); }
       });
     });
+    // Links from the observations under Motivation open the matching tab.
+    $$("[data-open-tab]").forEach((a) => a.addEventListener("click", () => select($("#" + a.dataset.openTab))));
     let started = false;
     $("#panel-s2").addEventListener("shown", () => { if (!started) { started = true; $$("[data-prune]")[0].click(); } });
   })();

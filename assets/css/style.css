@@ -441,23 +441,26 @@ table.t th.col-hi, table.t td.col-hi { box-shadow: inset 0 0 0 9999px rgba(40, 9
 .cell-bar .b i.up { right: auto; left: 50%; background: var(--m-effort); }
 .cell-bar .b::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--chart-axis); }
 
-/* ---- headroom cards ------------------------------------------------------------------ */
-.cards3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 36px; }
-.hcard {
-  display: flex; flex-direction: column; padding: 22px; border-radius: var(--radius);
-  background: var(--surface); border: 1px solid var(--rule);
+/* ---- observations that motivate the method ------------------------------------------ */
+.obs-title { margin: 44px 0 6px; font-size: 19px; }
+.obs-lede { margin: 0; max-width: var(--prose); color: var(--ink-2); font-size: 16px; }
+.obs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+.ob {
+  display: flex; flex-direction: column; padding: 18px 18px 16px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--rule-strong);
 }
-.hcard .big { font-size: 40px; font-weight: 600; letter-spacing: -.03em; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
-.hcard .big small { font-size: 18px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
-.hcard .unit { margin: 6px 0 14px; color: var(--muted); font-size: 14px; line-height: 1.45; }
-.hcard h3 { font-size: 18px; margin: 0 0 8px; }
-.hcard p { font-size: 15px; color: var(--ink-2); line-height: 1.6; }
-.hcard .then { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-2); }
-.hcard .then b { font-weight: 600; }
-.hcard.s1 .then b { color: var(--s1); }
-.hcard.s2 .then b { color: var(--s2); }
-.hcard.s3 .then b { color: var(--s3); }
-.hcard .thumb { margin: 4px -6px 16px; padding: 8px; border-radius: 8px; background: var(--figure-bg); cursor: zoom-in; border: 1px solid var(--rule); }
+.ob.s1 { border-top-color: var(--s1); }
+.ob.s2 { border-top-color: var(--s2); }
+.ob.s3 { border-top-color: var(--s3); }
+.ob .v { font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ob .v small { font-size: 15px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.ob p { margin: 8px 0 14px; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
+.ob .to { margin-top: auto; font-size: 13.5px; font-weight: 600; text-decoration: none; color: var(--accent-ink); }
+.ob .to::after { content: " →"; }
+.ob .to:hover { text-decoration: underline; }
+.ob.s1 .to { color: var(--s1); }
+.ob.s2 .to { color: var(--s2); }
+.ob.s3 .to { color: var(--s3); }
 
 /* ---- method: the three meta-strategies ---------------------------------------------- */
 .eq {
@@ -511,15 +514,6 @@ table.t th.col-hi, table.t td.col-hi { box-shadow: inset 0 0 0 9999px rgba(40, 9
 .sp-eq .katex, .eq .katex { white-space: nowrap; }
 .sp-eq .katex-display { margin: 0; text-align: left; }
 .sp-eq .katex-display > .katex { text-align: left; }
-
-.observed {
-  margin: 0 0 22px; padding: 10px 14px; border-radius: 8px; font-size: 14.5px; line-height: 1.55;
-  color: var(--ink-2); border-left: 3px solid var(--accent); background: var(--accent-soft);
-}
-.observed b { color: var(--ink); font-weight: 600; }
-.s1 .observed { border-left-color: var(--s1); background: var(--s1-soft); }
-.s2 .observed { border-left-color: var(--s2); background: var(--s2-soft); }
-.s3 .observed { border-left-color: var(--s3); background: var(--s3-soft); }
 
 /* example from the appendix: default against TokenEconomizer */
 .example-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 14px; margin-bottom: 12px; }
@@ -719,7 +713,8 @@ dialog.zoom button { position: absolute; top: 8px; right: 8px; }
   .stat:nth-child(3) { border-left: 0; }
   .stat:nth-child(n + 3) { border-top: 1px solid var(--rule); }
   .two-col, .two-col.wide-left, .sp-grid, .results-grid, .lc { grid-template-columns: minmax(0, 1fr); }
-  .cards3, .gen, .limits, .ablation { grid-template-columns: minmax(0, 1fr); }
+  .gen, .limits, .ablation { grid-template-columns: minmax(0, 1fr); }
+  .obs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .states { grid-template-columns: minmax(0, 1fr); }
   .state:first-child { border-radius: var(--radius) var(--radius) 0 0; }
   .state:last-child { border-radius: 0 0 var(--radius) var(--radius); }
@@ -732,7 +727,7 @@ dialog.zoom button { position: absolute; top: 8px; right: 8px; }
   body { font-size: 16px; }
   .wrap { padding: 0 16px; }
   section { padding-top: 64px; }
-  .stats { grid-template-columns: minmax(0, 1fr); }
+  .stats, .obs { grid-template-columns: minmax(0, 1fr); }
   .stat { border-left: 0 !important; }
   .stat + .stat { border-top: 1px solid var(--rule); }
   .panel, .tabpanel, .lc-detail { padding: 18px; }
