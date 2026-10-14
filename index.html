@@ -150,7 +150,7 @@
       <div class="prose">
         <h2>Coding agents are built for task success, not token efficiency</h2>
         <p>Claude Code, Codex, and GitHub Copilot CLI are designed to complete tasks, and their growing capability comes at a substantial token cost. On every turn, an agent is billed for its whole context: the system instructions, the descriptions of every tool, and everything that has happened in the task so far. Caching makes this replayed context cheaper, but it is still paid for on every turn.</p>
-        <p>Developers also return to the <strong>same codebase</strong> task after task, yet each task starts from scratch. What one task learns about the repository, such as how to run its tests, is rediscovered and paid for again in the next.</p>
+        <p>Developers also use agents on the <strong>same codebase</strong> over many tasks. Completed tasks are experience that could make later ones cheaper, yet token efficiency is usually studied and optimized one task at a time, so knowledge about the environment is often rediscovered, and paid for again, across tasks.</p>
       </div>
       <figure class="fig-plain reveal">
         <div class="fig-head"><span class="fig-title">What one task is billed for, turn by turn</span><button class="replay" type="button" id="anatomy-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button></div>
