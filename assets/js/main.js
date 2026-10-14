@@ -761,24 +761,24 @@
     },
     {
       id: "f", kind: "prune", repo: "django", setting: "Claude Code, Sonnet 5", short: "Claude Code", badge: ["s2", "19 of 23 tools masked"],
-      intro: "Over the first four tasks of the Django stream, the judge masks 19 of the 23 tools from task 2 on, and by task 4 the same 19 are masked on evidence, each unused for three tasks. Only Bash, Edit, Read, and Write stay loaded, and each task's first request shrinks from about 42–43k to about 15–16k prompt tokens.",
+      intro: "Over the first four tasks of the Django stream, the judge masks 19 of the 23 tools from task 2 on, and by task 4 the same 19 are masked on evidence, each unused for three tasks. Only Bash, Edit, Read, and Write stay loaded, so from task 2 on, the first request of each task falls from about 42–43k to about 15–16k prompt tokens.",
       kept: ["Bash", "Edit", "Read", "Write"],
       masked: ["AskUserQuestion", "CronCreate", "CronDelete", "CronList", "EnterPlanMode", "EnterWorktree", "ExitPlanMode", "ExitWorktree", "NotebookEdit", "ScheduleWakeup", "Skill", "Task", "TaskCreate", "TaskGet", "TaskList", "TaskOutput", "TaskStop", "TaskUpdate", "Workflow"],
       tasks: [["django-10097", 42866, 42866, "all 23 tools loaded"], ["django-10554", 16295, 43351, "the judge masks 19 tools"], ["django-10880", 15003, 42059, "the judge masks the same 19"], ["django-10914", 15299, 42355, "evidence masks the same 19, each unused for 3 tasks"]],
     },
     {
       id: "g", kind: "prune", repo: "django", setting: "Copilot CLI, Sonnet 5", short: "Copilot CLI", badge: ["s2", "10 of 19 tools masked"],
-      intro: "The same procedure on Copilot CLI masks 10 of its 19 tools, and each task's first request shrinks from about 25–26k to about 10–11k prompt tokens.",
+      intro: "The same procedure on Copilot CLI masks 10 of its 19 tools, so from task 2 on, the first request of each task falls from about 25–26k to about 10–11k prompt tokens.",
       kept: ["bash", "create", "edit", "glob", "grep", "list_bash", "read_bash", "stop_bash", "view"],
       masked: ["factories_manage", "fetch_copilot_cli_documentation", "list_agents", "read_agent", "run_factory", "session_store_sql", "skill", "sql", "task", "write_agent"],
       tasks: [["django-10097", 25765, 25760, "all 19 tools loaded"], ["django-10554", 11347, 26249, "the judge masks 10 tools"], ["django-10880", 10066, 24969, "the judge masks the same 10"], ["django-10914", 10343, 25248, "evidence masks the same 10, each unused for 3 tasks"]],
     },
     {
       id: "h", kind: "loop", repo: "sphinx", setting: "Claude Code, Opus 4.8", short: "Opus 4.8", badge: ["s3", "Redirect · 31 vs. 42 turns"], task: "sphinx-11445",
-      intro: "After 18 turns with 11 edits to one file, no test run, and the same failure three times, the trace judge finds the agent stuck and redirects it. The agent then tests its change and passes in 31 turns; default execution passes after 42.",
+      intro: "After 18 turns with 11 edits to one file, no test run, and the same failure three times, the trace judge finds the agent stuck and redirects it. The agent then tests its change, the tests pass, and it finishes in 31 turns; default execution passes after 42.",
       strips: [
         { label: "Default", right: "42 turns · passes", n: 42, cells: () => "", caption: "18 edits to sphinx/util/rst.py and 3 test runs before the task passes" },
-        { label: "TokenEconomizer", right: "31 turns · passes", n: 31, cells: (i) => (i < 18 ? "loop" : "after") },
+        { label: "TokenEconomizer", right: "31 turns · finishes", n: 31, cells: (i) => (i < 18 ? "loop" : "after") },
       ],
       legend: [["loop", "before the redirect"], ["after", "after the redirect"]],
       lines: [
