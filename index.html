@@ -192,8 +192,45 @@
       <p class="eq-note">\(\Delta P_i\): the micro-skills activated for this task &nbsp;·&nbsp; \(\mathcal{U}_i\): the tools loaded &nbsp;·&nbsp; \(B_i\): the turn budget that calibrates the failure-loop guard. The controller can always leave the default configuration in place, and its own model calls are charged to the task that triggers them.</p>
     </div>
 
-    <figure class="fig zoomable reveal">
-      <img src="assets/img/fig_framework_overview.svg" alt="Framework overview: a controller with three meta-strategies (micro-skill injection, tool pruning, failure-loop intervention) acts on an unchanged agent and harness through the instruction prefix between tasks, the loaded tool set before each task, and the live rollout; each completed trace updates the learners." width="1188" height="600" loading="lazy">
+    <figure class="ov reveal">
+      <div class="ov-grid">
+        <div class="ov-head"><span class="ov-kicker">Controller</span><b>TokenEconomizer</b><small>keeps a state \(S_i\) for each repository, built from the tasks completed before \(\tau_i\)</small></div>
+        <div class="ov-gap" aria-hidden="true"></div>
+        <div class="ov-head"><span class="ov-kicker">Coding agent</span><b>Left unchanged</b><small>same model and agent code; runs task \(\tau_i\) with what the controller sets</small></div>
+
+        <div class="ov-card s1"><h4><span class="ix">1</span>Micro-skill injection</h4><p>Instructions and detectors distilled from completed traces, gated by evidence</p></div>
+        <div class="ov-arrow s1" aria-hidden="true"></div>
+        <div class="ov-row s1">
+          <div class="ov-row-head"><span><b>Knowledge</b> · instruction prefix</span><span class="ov-when">between tasks</span></div>
+          <div class="ov-prefix"><span>system and agent instructions</span><span class="hl">+ micro-skills</span><span>task \(\tau_i\)</span></div>
+          <p class="ov-note">only the activated skills are added</p>
+        </div>
+
+        <div class="ov-card s2"><h4><span class="ix">2</span>Tool pruning</h4><p>Masks tools that recent tasks left unused or that are judged irrelevant; shell, read, and edit are always kept</p></div>
+        <div class="ov-arrow s2" aria-hidden="true"></div>
+        <div class="ov-row s2">
+          <div class="ov-row-head"><span><b>Interface</b> · loaded tool set</span><span class="ov-when">before each task</span></div>
+          <div class="ov-chips"><span class="t core">shell</span><span class="t core">read</span><span class="t core">edit</span><span class="t">grep</span><span class="t">git</span><span class="t">test</span><span class="ov-off"><span class="t off">web</span><span class="t off">jupyter</span><span class="t off">browser</span><span class="t off">mcp:*</span><em>not loaded</em></span></div>
+        </div>
+
+        <div class="ov-card s3"><h4><span class="ix">3</span>Failure-loop intervention</h4><p>Learns the repository's turn budget, then redirects a repeated failure once, and stops the run if it persists</p></div>
+        <div class="ov-arrow s3" aria-hidden="true"></div>
+        <div class="ov-row s3">
+          <div class="ov-row-head"><span><b>Control</b> · live rollout</span><span class="ov-when">during the rollout</span></div>
+          <div class="ov-roll">
+            <span class="ov-dots">…</span>
+            <span class="ov-grp"><span class="t fail">edit</span><span class="t fail">test</span><em>repeated failures</em></span>
+            <span class="ov-dots">…</span>
+            <span class="t act">redirect</span>
+            <span class="ov-grp"><span class="t fail">edit</span><span class="t fail">test</span><em>still repeating</em></span>
+            <span class="ov-dots">…</span>
+            <span class="t act outline">stop</span>
+            <span class="ov-grp"><span class="t off">edit</span><span class="t off">test</span><em>never run</em></span>
+          </div>
+        </div>
+
+        <div class="ov-loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span><b>Learning from each task.</b> The completed trace \(\xi_i\) of every task updates all three meta-strategies, giving the state \(S_{i+1}\) used for the next task \(\tau_{i+1}\).</span></div>
+      </div>
       <figcaption><b>TokenEconomizer</b> applies the same three meta-strategies in every repository, while completed traces refine repository-specific policies over instructions, loaded tools, and live intervention.</figcaption>
     </figure>
 
