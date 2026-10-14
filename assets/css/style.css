@@ -299,14 +299,11 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: .88em; }
 .gl-path { fill: none; stroke: var(--rule-strong); stroke-width: 1.6; stroke-dasharray: 4 4; }
 .gl-path-te { stroke: var(--accent); }
 .gl-arrowhead { fill: var(--muted); }
-.gl-dot { fill: var(--ink-2); }
-.gl-dot-te { fill: var(--accent); }
 .gl-levers { list-style: none; margin: 0; padding: 12px 0 0; border-top: 1px dashed var(--rule-strong); display: grid; gap: 10px; }
 .gl-levers li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
 .gl-levers .ix { width: 22px; height: 22px; font-size: 12px; margin-top: 1px; }
 .gl-levers b { color: var(--ink); font-weight: 600; }
 .gl-foot { margin: 14px 0 0; padding-top: 12px; border-top: 1px dashed var(--rule-strong); font-size: 13px; line-height: 1.5; color: var(--muted); }
-@media (prefers-reduced-motion: reduce) { .gl-dot { display: none; } }
 
 /* ---- side rail: the contents, shown when there is room ------------------------------- */
 .rail {
