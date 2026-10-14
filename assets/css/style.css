@@ -266,7 +266,6 @@ code, kbd, .mono { font-family: var(--font-mono); font-size: .88em; }
 .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .btn.primary:hover { border-color: var(--ink); }
 .btn[aria-disabled="true"] { cursor: default; color: var(--ink-2); background: transparent; border-color: var(--rule-strong); border-style: dashed; box-shadow: none; transform: none; }
-.btn .soon { font-size: 12px; font-weight: 500; color: var(--muted); }
 
 .logos { display: flex; align-items: center; gap: 26px; margin-top: 30px; }
 .logos img { height: 26px; width: auto; }
