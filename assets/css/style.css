@@ -740,6 +740,27 @@ details.ex-more p { margin: 10px 0 10px; color: var(--ink-2); line-height: 1.6; 
 .grow-q b { font-weight: 500; color: var(--ink-2); }
 .gcard .gfoot { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--ink-2); line-height: 1.55; }
 
+/* ---- expandable panels for the details ---------------------------------------------- */
+details.xp { margin-top: 18px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--surface); }
+details.xp > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+  padding: 15px 20px; font-size: 15.5px; font-weight: 600; color: var(--ink); border-radius: var(--radius);
+}
+details.xp > summary::-webkit-details-marker { display: none; }
+details.xp > summary::before {
+  content: ""; flex: none; width: 8px; height: 8px; margin: 0 2px 2px 2px;
+  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); transition: transform .2s;
+}
+details.xp[open] > summary::before { transform: rotate(45deg); }
+details.xp > summary:hover { background: var(--surface-2); }
+details.xp[open] > summary { border-bottom: 1px solid var(--rule); border-radius: var(--radius) var(--radius) 0 0; }
+.xp-hint { margin-left: auto; font-size: 13px; font-weight: 400; color: var(--muted); }
+details.xp[open] .xp-hint { visibility: hidden; }
+.xp-body { padding: 20px; }
+.xp-body > .prose p { color: var(--ink-2); }
+.xp-body .strategies3 { margin-top: 18px; }
+.js .xp .strategies3 .steps li { opacity: 1; transform: none; transition: none; }
+
 /* ---- citation, footer ------------------------------------------------ */
 .bib { position: relative; margin-top: 18px; border-radius: var(--radius); background: var(--code-bg); border: 1px solid var(--rule); }
 .bib pre { margin: 0; padding: 20px 22px; overflow-x: auto; font: 13px/1.7 var(--font-mono); color: var(--ink); }

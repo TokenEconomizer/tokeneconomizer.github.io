@@ -310,7 +310,7 @@
   // Two chip groups, one beside the charts and one above the table, share one selection.
   (function chips() {
     const groups = $$("[data-setting-chips]");
-    const options = [[null, "All settings"], ...D.settings.map((st) => [st.id, `${st.agent} <small>${st.model}</small>`])];
+    const options = [[null, "All"], ...D.settings.map((st) => [st.id, `${st.agent} <small>${st.model}</small>`])];
     groups.forEach((box) => options.forEach(([id, html]) => {
       const b = document.createElement("button");
       b.type = "button"; b.className = "chip"; b.innerHTML = html; b.dataset.setting = id || "";
@@ -625,16 +625,16 @@
   /* ---------------------------------------------------------------- generalization */
   (function generalization() {
     const META = {
-      "Web-Bench": { title: "Web-Bench", sub: "Sequential web development · 102 tasks in 5 projects · Pass@2", foot: "Tasks inherit the workspace. Savings hold even though each stream has only 20 or 21 tasks." },
-      CredData: { title: "CredData", sub: "Credential detection · 100 tasks · detection F1", foot: "No repository recurs, yet tool pruning and the loop guard still save substantially under a shared audit procedure." },
-      ReposVul: { title: "ReposVul", sub: "Vulnerability detection · 100 tasks · detection F1", foot: "Shorter trajectories leave less removable cost, so savings are smaller." },
+      "Web-Bench": { title: "Web-Bench", sub: "Sequential web development · 102 tasks in 5 projects · Pass@2" },
+      CredData: { title: "CredData", sub: "Credential detection · 100 tasks · detection F1" },
+      ReposVul: { title: "ReposVul", sub: "Vulnerability detection · 100 tasks · detection F1" },
     };
     const groups = [...new Set(D.transfer.map((r) => r.workload))];
     $("#gen").innerHTML = groups.map((w) => {
       const rows = D.transfer.filter((r) => r.workload === w);
       return `<article class="gcard reveal"><h3>${META[w].title}</h3><p class="sub">${META[w].sub}</p>${rows.map((r) =>
         `<div class="grow"><span>${r.agent}</span><span class="bar"><i data-w="${(Math.abs(r.cost.v) / 25 * 100).toFixed(1)}"></i></span><span class="v">${pct(r.cost.v)}</span></div>` +
-        `<p class="grow-q">quality <b>${r.default.v.toFixed(1)}</b> → <b>${r.te.v.toFixed(1)}</b></p>`).join("")}<p class="gfoot">${META[w].foot}</p></article>`;
+        `<p class="grow-q">quality <b>${r.default.v.toFixed(1)}</b> → <b>${r.te.v.toFixed(1)}</b></p>`).join("")}</article>`;
     }).join("");
     growBars($("#gen"));
   })();
@@ -801,10 +801,9 @@
     return `<p class="ex-intro">${esc(x.summary)}</p>` +
       `<div class="skillbox" style="margin-top:14px"><span class="tag">MICRO-SKILL${x.stakes ? " · HIGH-STAKES" : ""}</span>${esc(x.skill)}</div>` +
       (x.traces ? tracesBlock(x.tracesTitle, x.traces) + (x.result ? `<p class="ex-result">${esc(x.result)}</p>` : "") : "") +
-      `<h4 class="ex-h">How the controller handled it, over the stream's ${x.span}</h4>` +
-      `<ul class="timeline">${x.life.map(([k, v]) => `<li><span>${k}</span><span>${esc(v)}</span></li>`).join("")}</ul>` +
-      `<details class="ex-more"><summary>Detectors, as the proposer wrote them</summary>` +
-      `<p>Each skill comes with patterns that the controller matches against every later trace: <b>scope</b> says whether the task ran into the situation at all, <b>confirm</b> and <b>contradict</b> say whether the trace agreed with the skill, and <b>need</b> says whether the task needed it. A dash means the proposer gave none.</p>` +
+      `<details class="ex-more"><summary>How the controller handled it, over the stream's ${x.span}</summary>` +
+      `<ul class="timeline" style="margin-top:10px">${x.life.map(([k, v]) => `<li><span>${k}</span><span>${esc(v)}</span></li>`).join("")}</ul>` +
+      `<p>The skill's detectors, as the proposer wrote them: <b>scope</b> says whether a task ran into the situation, <b>confirm</b> and <b>contradict</b> whether the trace agreed with the skill, and <b>need</b> whether the task needed it. A dash means none was given.</p>` +
       `<dl class="detectors">${x.det.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl></details>`;
   }
 

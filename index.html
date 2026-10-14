@@ -126,17 +126,11 @@
 <section id="overview" style="padding-top:56px">
   <div class="wrap">
     <div class="stats reveal">
-      <div class="stat lead"><span class="v" data-stat="swe-range">18.4–30.9<small>%</small></span><span class="k">lower mean cost on SWE-Bench across three coding agents and five agent–model combinations</span></div>
-      <div class="stat"><span class="v" data-stat="cells">30<small> / 30</small></span><span class="k">repository and agent–model combinations where TokenEconomizer is cheaper than default execution</span></div>
-      <div class="stat"><span class="v" data-stat="pass">4<small> of 5</small></span><span class="k">agent–model combinations where Pass@1 improves over default execution</span></div>
+      <div class="stat lead"><span class="v" data-stat="swe-range">18.4–30.9<small>%</small></span><span class="k">lower mean cost on SWE-Bench, across five agent–model combinations</span></div>
+      <div class="stat"><span class="v" data-stat="cells">30<small> / 30</small></span><span class="k">repository and agent–model combinations where TokenEconomizer is cheaper</span></div>
+      <div class="stat"><span class="v" data-stat="pass">4<small> of 5</small></span><span class="k">agent–model combinations where Pass@1 also improves</span></div>
     </div>
 
-    <div class="abstract reveal">
-      <h3>In short</h3>
-      <p>Coding agents such as Claude Code, Codex, and GitHub Copilot CLI are usually evaluated one task at a time, but developers use them on the same codebase task after task. In that setting, much of what an agent pays for recurs: it rediscovers the same facts about the repository, carries the descriptions of tools it never uses, and keeps retrying when it is stuck.</p>
-      <p>TokenEconomizer is a controller that sits outside the agent. After every task in a repository, it learns from what the agent did and adjusts three things for the next task: which short facts about the repository to tell the agent, which tools to load, and when to step in on a failure loop. It changes neither the model nor the agent's code.</p>
-      <p>On 277 SWE-Bench tasks, it lowers average cost by 18.4–30.9% across the five agent–model settings we evaluated, with comparable task success. The savings also carry over to web development and security auditing.</p>
-    </div>
   </div>
 </section>
 
@@ -147,37 +141,36 @@
     <div class="two-col wide-left">
       <div class="prose">
         <h2>Coding agents are built for task success, not token efficiency</h2>
-        <p>Claude Code, Codex, and GitHub Copilot CLI are designed to complete tasks, and their growing capability comes at a substantial token cost. On every turn, an agent is billed for its whole context: the system instructions, the descriptions of every tool, and everything that has happened in the task so far. Caching makes this replayed context cheaper, but it is still paid for on every turn.</p>
-        <p>Developers also use agents on the <strong>same codebase</strong> over many tasks. Completed tasks are experience that could make later ones cheaper, yet token efficiency is usually studied and optimized one task at a time, so knowledge about the environment is often rediscovered, and paid for again, across tasks.</p>
+        <p>Every turn re-bills the agent's whole context: its instructions, every tool description, and the task so far. Developers use agents on the <strong>same codebase</strong> over many tasks, yet efficiency is optimized one task at a time, so knowledge about the environment is often paid for again in later tasks.</p>
       </div>
       <figure class="fig-plain reveal">
         <div class="fig-head"><span class="fig-title">What one task is billed for, turn by turn</span><button class="replay" type="button" id="anatomy-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button></div>
         <div class="chart" id="anatomy-chart" role="img" aria-label="Schematic of ten agent turns. Each turn is billed for the system and tool prefix plus everything earlier in the task, replayed, so the billed context grows with every turn."></div>
         <ul class="alegend" id="anatomy-legend"></ul>
-        <figcaption><b>Anatomy of a billed trajectory</b> (schematic). Each row is one turn's billed context: the prefix, every earlier turn replayed (hatched), and what is new on this turn.</figcaption>
+        <figcaption>Schematic: each row is one turn's billed context; hatched parts are replayed from earlier turns.</figcaption>
       </figure>
     </div>
 
     <h3 class="waste-title">Three kinds of recurring waste</h3>
-    <p class="waste-lede">We profiled 60 SWE-Bench tasks run by an unmodified agent. Three patterns stand out, and TokenEconomizer has one strategy for each.</p>
+    <p class="waste-lede">From 60 profiled SWE-Bench runs of an unmodified agent, each matched by one strategy:</p>
     <div class="waste reveal">
       <article class="w s1">
         <h4><span class="ix">1</span>Rediscovering the same facts</h4>
-        <p>Agents keep working out how to run the tests or where the code lives. After five or more tasks in a repository, <b>30% of tool calls</b> repeat an action from an earlier task.</p>
-        <p class="fix"><b>Micro-skill injection</b> tells the agent short facts about the repository, verified on every later task.</p>
+        <p><b>30% of tool calls</b> repeat an earlier task's action once a repository has five or more tasks behind it.</p>
+        <p class="fix">→ <b>Micro-skill injection</b></p>
       </article>
       <article class="w s2">
         <h4><span class="ix">2</span>Paying for unused tools</h4>
-        <p>Every turn bills the descriptions of <b>23 tools</b>, but <b>16 of them</b> are never called, in any repository.</p>
-        <p class="fix"><b>Tool pruning</b> unloads tools the repository does not need, and brings them back if it does.</p>
+        <p><b>16 of the 23</b> tool descriptions billed on every turn are never called.</p>
+        <p class="fix">→ <b>Tool pruning</b></p>
       </article>
       <article class="w s3">
         <h4><span class="ix">3</span>Getting stuck on failures</h4>
-        <p>The <b>17% of tasks</b> that fail take <b>32% of the spend</b>, and how much longer failing runs last varies by repository.</p>
-        <p class="fix"><b>Failure-loop intervention</b> spots unproductive loops, redirects the agent, and stops it if the loop persists.</p>
+        <p>The <b>17% of tasks</b> that fail take <b>32% of the spend</b>.</p>
+        <p class="fix">→ <b>Failure-loop intervention</b></p>
       </article>
     </div>
-    <p class="why-adapt reveal"><b>Why not a fixed strategy?</b> Fixed strategies from popular open-source tools, such as RTK, Serena, and RepoMap, apply one configuration everywhere, and in our profile each one lowers cost in some repositories but raises it in others. TokenEconomizer instead learns what to do in each repository from that repository's own completed tasks.</p>
+    <p class="why-adapt reveal"><b>Why not a fixed strategy?</b> RTK, Serena, and RepoMap each lower cost in some repositories and raise it in others, so TokenEconomizer learns what to do in each repository instead.</p>
   </div>
 </section>
 
@@ -187,9 +180,7 @@
     <p class="eyebrow"><span class="n">2</span> Method</p>
     <div class="prose">
       <h2>How TokenEconomizer works</h2>
-      <p>TokenEconomizer treats the agent as a black box. It acts only through what the harness already exposes, namely the instruction prefix, the loaded tools, and the live event stream, and never changes model weights or agent-loop code. Tasks \(\tau_1,\ldots,\tau_n\) in an environment arrive in order. Before task \(\tau_i\), the controller reads the repository state \(S_{i-1}\) distilled from the tasks completed so far and sets three policies:</p>
-      <div class="eq">\[(\Delta P_i,\ \mathcal{U}_i,\ B_i) \;=\; \mathcal{C}(\tau_i,\ S_{i-1})\]</div>
-      <p class="eq-note">\(\Delta P_i\): the micro-skills activated for this task &nbsp;·&nbsp; \(\mathcal{U}_i\): the tools loaded &nbsp;·&nbsp; \(B_i\): the turn budget that calibrates the failure-loop guard. The controller can always leave the default configuration in place, and its own model calls are charged to the task that triggers them.</p>
+      <p class="lede">An external controller that acts only through what the agent already exposes. After every task, it updates three policies for the next one.</p>
     </div>
 
     <figure class="ov reveal">
@@ -231,10 +222,17 @@
 
         <div class="ov-loop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span><b>Learning from each task.</b> The completed trace \(\xi_i\) of every task updates all three meta-strategies, giving the state \(S_{i+1}\) used for the next task \(\tau_{i+1}\).</span></div>
       </div>
-      <figcaption><b>TokenEconomizer</b> applies the same three meta-strategies in every repository, while completed traces refine repository-specific policies over instructions, loaded tools, and live intervention.</figcaption>
     </figure>
 
-    <div class="strategies3 reveal">
+    <details class="xp">
+      <summary>Step by step: what each meta-strategy does, and its settings<span class="xp-hint">expand</span></summary>
+      <div class="xp-body">
+        <div class="prose">
+          <p>TokenEconomizer treats the agent as a black box. It acts only through what the harness already exposes, namely the instruction prefix, the loaded tools, and the live event stream, and never changes model weights or agent-loop code. Tasks \(\tau_1,\ldots,\tau_n\) in an environment arrive in order. Before task \(\tau_i\), the controller reads the repository state \(S_{i-1}\) distilled from the tasks completed so far and sets three policies:</p>
+          <div class="eq">\[(\Delta P_i,\ \mathcal{U}_i,\ B_i) \;=\; \mathcal{C}(\tau_i,\ S_{i-1})\]</div>
+          <p class="eq-note">\(\Delta P_i\): the micro-skills activated for this task &nbsp;·&nbsp; \(\mathcal{U}_i\): the tools loaded &nbsp;·&nbsp; \(B_i\): the turn budget that calibrates the failure-loop guard. The controller can always leave the default configuration in place, and its own model calls are charged to the task that triggers them.</p>
+        </div>
+    <div class="strategies3">
       <article class="sc s1">
         <header><span class="ix">1</span><div><h3>Micro-skill injection</h3><small>Knowledge · between tasks</small></div></header>
         <ol class="steps">
@@ -264,7 +262,9 @@
         </ol>
       </article>
     </div>
-    <p class="params-note reveal">The values given are the settings used in our experiments. The same values serve every agent, model, and repository; they were fixed in development runs before the main experiments, and the other benchmarks change only what their task streams require. Each one can be changed to suit a deployment: for example, a smaller \(n\) or \(k\), or a smaller \(\beta\) or \(\kappa\), acts sooner and saves more, at a higher risk of a wrong decision.</p>
+    <p class="params-note">The values given are the settings used in our experiments. The same values serve every agent, model, and repository; they were fixed in development runs before the main experiments, and the other benchmarks change only what their task streams require. Each one can be changed to suit a deployment: for example, a smaller \(n\) or \(k\), or a smaller \(\beta\) or \(\kappa\), acts sooner and saves more, at a higher risk of a wrong decision.</p>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -273,28 +273,28 @@
   <div class="wrap">
     <p class="eyebrow"><span class="n">3</span> Results on SWE-Bench</p>
     <div class="prose">
-      <h2>Consistent savings across the agents, models, and repositories we evaluated</h2>
-      <p class="lede">Five agent–model settings across Claude Code, Codex, and GitHub Copilot CLI run the same 277 SWE-Bench tasks from 6 repositories, in each repository's chronological order. TokenEconomizer lowers mean cost by 18.4–30.9% and improves Pass@1 in four of the five settings. Cost is cache-aware and charges every controller call to the task that triggered it.</p>
+      <h2>Consistent savings in every combination we evaluated</h2>
+      <p class="lede">Five agent–model combinations on the same 277 SWE-Bench tasks from 6 repositories, run in each repository's order. Costs include every controller call.</p>
     </div>
 
     <div class="panel reveal explore">
       <div class="explore-head">
         <div>
-          <h3>Highlight one agent–model setting</h3>
-          <p>Choose a setting to bring its points forward in both charts below. In the frontier chart, you can also click a method in the legend to show or hide it.</p>
+          <h3>Highlight one agent–model combination</h3>
+          <p>Applies to both charts. Click a method in the frontier legend to hide it.</p>
         </div>
         <div class="chips" data-setting-chips role="group" aria-label="Agent–model setting to highlight in the charts"></div>
       </div>
       <div class="results-grid">
       <div class="sub">
         <h3>The savings are consistent</h3>
-        <p class="caption" style="margin:0 0 12px">Cost change in each of the 30 repository–setting cells. TokenEconomizer is cheaper in all 30, by 5.2–40.1%; RTK alone is costlier in 12 and RepoMap alone in 15.</p>
+        <p class="caption" style="margin:0 0 12px">Cost change for each repository under each combination. TokenEconomizer is cheaper in all 30.</p>
         <div class="chart" id="strip-chart" role="img" aria-label="Strip plot of per-repository cost changes for five methods across 30 repository-setting cells. All TokenEconomizer cells are below zero; RTK and RepoMap cells straddle zero."></div>
         <details class="data"><summary>View data</summary><div class="table-scroll" id="strip-table"></div></details>
       </div>
       <div class="sub">
         <h3>Adaptation expands the frontier</h3>
-        <p class="caption" style="margin:0 0 12px">Each method's cost and Pass@1 change from default execution in its setting. TokenEconomizer variants make up every point on the frontier that keeps or improves the default pass rate.</p>
+        <p class="caption" style="margin:0 0 12px">Cost and Pass@1 change from default. TokenEconomizer variants form the frontier at or above default Pass@1.</p>
         <div class="chart" id="frontier-chart" role="img" aria-label="Scatter of cost change against Pass@1 change for every method in five settings. Reduced effort is cheap but loses accuracy; RTK and RepoMap cluster near the default; TokenEconomizer variants sit to the left at or above zero Pass@1 change."></div>
         <div class="sub-foot">
           <ul class="legend" id="frontier-legend"></ul>
@@ -306,13 +306,12 @@
     <div class="panel reveal">
       <div class="panel-head">
         <div>
-          <h3>Full results: cost change and Pass@1 by method</h3>
-          <p>Cost is the paired relative change from high-effort default execution; Pass@1 is the absolute rate. All values are percentages; small numbers give the standard deviation across repeated runs. Bold marks, per setting, the highest Pass@1 and the lowest cost among methods whose Pass@1 exceeds default execution; faded costs come with a Pass@1 below default.</p>
+          <h3>Full results</h3>
+          <p>Cost change from default and Pass@1, in %, with standard deviations. <b>Bold</b>: best per column among methods above default Pass@1; faded: Pass@1 below default.</p>
         </div>
       </div>
-      <div class="table-tools"><span>Highlight a setting in the table</span><div class="chips" data-setting-chips role="group" aria-label="Agent–model setting to highlight in the table"></div></div>
+      <div class="table-tools"><span>Highlight in the table</span><div class="chips" data-setting-chips role="group" aria-label="Agent–model setting to highlight in the table"></div></div>
       <div class="table-scroll" id="table1"></div>
-      <p class="caption" style="margin-top:16px">Lowering reasoning effort saves tokens at the price of 1.8–10.3 points of Pass@1, and RTK or RepoMap alone saves inconsistently. TokenEconomizer also combines with either: on Claude Code with Opus 4.8, adding RTK raises the saving from 30.9% to 33.2% with Pass@1 above default.</p>
     </div>
 
 
@@ -320,22 +319,20 @@
       <div class="panel-head">
         <div>
           <h3>Savings accumulate over the task stream</h3>
-          <p>TokenEconomizer starts each repository with no traces, so its first tasks can cost more than default execution. Every repository is cheaper by the sixth task and stays cheaper, ending with cumulative savings of 16.9–32.0%. Cumulative cost change over each repository's task stream, averaged over the two Claude Code settings; hover to read off a task.</p>
+          <p>Cumulative cost change over each repository's tasks (Claude Code). Starting with no traces, every repository is cheaper by the sixth task.</p>
         </div>
         <button class="replay" type="button" id="amort-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button>
       </div>
       <ul class="legend focus-legend" id="amort-legend"></ul>
       <div class="chart" id="amort-chart" role="img" aria-label="Cumulative cost change of TokenEconomizer against tasks completed, one line per repository. Some lines start above zero, every line is below zero by the sixth task, and they end between 16.9 and 32.0 percent cheaper."></div>
     </div>
-    <div class="panel reveal" style="margin-top:18px">
-      <div class="panel-head">
-        <div>
-          <h3>Each meta-strategy alone</h3>
-          <p>Claude Code on SWE-Bench. Tool pruning saves the most on its own because it acts on every turn of every task. None alone matches the combination, and Pass@1 stays within 3 points of default for every variant.</p>
-        </div>
+    <details class="xp">
+      <summary>Ablation: each meta-strategy alone<span class="xp-hint">expand</span></summary>
+      <div class="xp-body">
+        <p class="caption" style="margin:0 0 14px">Claude Code. Tool pruning saves the most on its own because it acts on every turn; none alone matches the combination, and Pass@1 stays within 3 points of default.</p>
+        <div class="ablation" id="ablation"></div>
       </div>
-      <div class="ablation" id="ablation"></div>
-    </div>
+    </details>
   </div>
 </section>
 
@@ -345,7 +342,7 @@
     <p class="eyebrow"><span class="n">4</span> Generalization</p>
     <div class="prose">
       <h2>Savings carry over to web development and security auditing</h2>
-      <p class="lede">Web-Bench tasks build on one continuous project and inherit earlier workspace changes. In the security benchmarks, each task targets a different repository under a fixed audit prompt, so repository-specific micro-skills are switched off and the other two meta-strategies run alone.</p>
+      <p class="lede">Web-Bench builds one project task by task; in the security benchmarks every task is a new repository, so micro-skills are off.</p>
     </div>
     <div class="gen" id="gen"></div>
   </div>
@@ -357,7 +354,7 @@
     <p class="eyebrow"><span class="n">5</span> Examples</p>
     <div class="prose">
       <h2>What the controller does in real runs</h2>
-      <p class="lede">Nine examples from the paper's appendix, all on SWE-Bench. Examples (a)–(e) show how a micro-skill is learned and then injected, retired, or held back; (f) and (g) show tool masks shrinking the prompt; (h) and (i) show the failure-loop guard redirecting or stopping a run. Pick one to see what happened and the agent's own trace.</p>
+      <p class="lede">Nine examples from the paper's appendix, all on SWE-Bench. Pick one.</p>
     </div>
     <div class="lc reveal">
       <div class="lc-list" role="tablist" aria-label="Examples" id="ex-list"></div>
