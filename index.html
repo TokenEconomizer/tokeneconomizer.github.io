@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TokenEconomizer: Experience-Driven Black-Box Cost Control for Coding Agents</title>
+<meta name="description" content="TokenEconomizer is an external controller that learns, from completed traces, which micro-skills to inject, which tools to prune, and when to stop failure loops, cutting coding-agent cost by 18.4–30.9% on SWE-Bench with comparable task success.">
+<link rel="canonical" href="https://tokeneconomizer.github.io/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tokeneconomizer.github.io/">
+<meta property="og:title" content="TokenEconomizer: Experience-Driven Black-Box Cost Control for Coding Agents">
+<meta property="og:description" content="An external controller that learns each repository's cost-control policy from completed traces: 18.4–30.9% lower cost across Claude Code, Codex, and Copilot CLI, with comparable task success.">
+<meta property="og:image" content="https://tokeneconomizer.github.io/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#edf2f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111a24" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>
+  // Before first paint: mark JS as available and restore a theme the reader picked.
+  document.documentElement.classList.add("js");
+  try { var t = localStorage.getItem("te-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="progress" aria-hidden="true"></div>
+
+<!-- ===================================================================== hero -->
+<header class="hero" id="top">
+  <div class="wrap topline">
+    <a class="brand" href="#top" aria-label="TokenEconomizer, back to top">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#285E9F"/><rect x="5" y="5" width="3.2" height="14" rx="1.2" fill="#fff"/><rect x="10.4" y="9" width="3.2" height="10" rx="1.2" fill="#fff" opacity=".85"/><rect x="15.8" y="13" width="3.2" height="6" rx="1.2" fill="#fff" opacity=".7"/></svg>
+      TokenEconomizer
+    </a>
+    <div class="topline-right">
+      <button class="icon-btn" id="theme" type="button" aria-label="Switch to dark theme">
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <p class="kicker"><span class="pill">Preprint</span> 2026</p>
+      <h1><span class="w1">Token</span><span class="w2">Economizer</span></h1>
+      <p class="subtitle">Experience-driven black-box cost control for coding agents</p>
+
+      <ul class="authors" aria-label="Authors">
+        <li>Aaron J. Li<sup>1,*</sup></li>
+        <li>Weijia Xu<sup>2</sup></li>
+        <li>Chandan Singh<sup>2</sup></li>
+        <li>Zixiao Chen<sup>3</sup></li>
+        <li>Jeevana Priya Inala<sup>2</sup></li>
+        <li>Charlotte Siska<sup>3</sup></li>
+        <li>Acar Tamersoy<sup>3</sup></li>
+        <li>Bin Yu<sup>1</sup></li>
+        <li>Ion Stoica<sup>1</sup></li>
+        <li>Michel Galley<sup>2</sup></li>
+        <li>Jianfeng Gao<sup>2</sup></li>
+      </ul>
+      <p class="affils"><span><sup>1</sup>UC Berkeley</span><span><sup>2</sup>Microsoft Research</span><span><sup>3</sup>Microsoft Security</span></p>
+      <p class="note">*Work done during an internship at Microsoft Research. Correspondence: <a href="mailto:aaronjli@berkeley.edu">aaronjli@berkeley.edu</a></p>
+
+      <nav class="actions" aria-label="Paper links">
+        <!-- TODO(arxiv): when the paper is on arXiv, set href="https://arxiv.org/abs/<id>", drop aria-disabled and the "soon" label. -->
+        <a class="btn primary" aria-disabled="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.8h8.2L19 7.6V21.2H6z"/><path d="M14 2.8v5h5M9 12.5h7M9 16h7"/></svg>
+          Paper <span class="soon">arXiv soon</span>
+        </a>
+        <a class="btn" href="https://github.com/microsoft/TokenEconomizer">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+          Code
+        </a>
+        <a class="btn" href="#citation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7 3 12l5 5M16 7l5 5-5 5"/></svg>
+          BibTeX
+        </a>
+      </nav>
+
+      <div class="logos" aria-label="Affiliations">
+        <img class="logo-light" src="assets/img/logo_berkeley.svg" alt="UC Berkeley" width="83" height="26">
+        <img class="logo-dark" src="assets/img/logo_berkeley_dark.svg" alt="UC Berkeley" width="83" height="26">
+        <img class="ms logo-light" src="assets/img/logo_microsoft.svg" alt="Microsoft" width="103" height="22">
+        <img class="ms logo-dark" src="assets/img/logo_microsoft_dark.svg" alt="Microsoft" width="103" height="22">
+      </div>
+    </div>
+
+    <div class="receipt-wrap">
+      <article class="receipt" aria-labelledby="rt-title">
+        <header>
+          <span class="rt-title" id="rt-title">COST SUMMARY</span>
+          <div class="seg" role="group" aria-label="Model">
+            <button type="button" data-model="cc-sonnet" aria-pressed="false">Sonnet 5</button>
+            <button type="button" data-model="cc-opus" aria-pressed="true">Opus 4.8</button>
+          </div>
+        </header>
+        <p class="rt-meta">SWE-Bench · Claude Code<br>277 tasks · 6 repositories · 3 seeds</p>
+        <hr class="rt-rule">
+        <div class="rt-line s1"><span class="lbl">Micro-skills alone</span><span class="val" data-rt="skills">−14.3%</span><span class="rt-bar"><i data-rt-bar="skills"></i></span></div>
+        <div class="rt-line s2"><span class="lbl">Tool pruning alone</span><span class="val" data-rt="pruning">−17.7%</span><span class="rt-bar"><i data-rt-bar="pruning"></i></span></div>
+        <div class="rt-line s3"><span class="lbl">Failure-loop guard alone</span><span class="val" data-rt="guard">−5.4%</span><span class="rt-bar"><i data-rt-bar="guard"></i></span></div>
+        <hr class="rt-rule">
+        <div class="rt-total"><span class="lbl">All three, combined</span><span class="big" data-rt="te">−30.9%</span></div>
+        <div class="rt-pass"><span>Pass@1</span><span><b data-rt="pass-default">74.0</b> → <b data-rt="pass-te">73.0</b></span></div>
+        <p class="rt-foot">Mean cache-aware cost change vs. default execution, including every controller call.</p>
+      </article>
+    </div>
+  </div>
+</header>
+
+<nav class="rail" aria-label="Contents">
+  <ol>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#motivation">Motivation</a></li>
+    <li><a href="#profiling">Cost profiling</a></li>
+    <li><a href="#method">Method</a></li>
+    <li><a href="#micro-skills">Micro-skills</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#generalization">Generalization</a></li>
+    <li><a href="#limitations">Limitations</a></li>
+    <li><a href="#citation">Citation</a></li>
+  </ol>
+</nav>
+
+<main id="main">
+
+<!-- ================================================================= overview -->
+<section id="overview" style="padding-top:56px">
+  <div class="wrap">
+    <div class="stats reveal">
+      <div class="stat lead"><span class="v" data-stat="swe-range">18.4–30.9<small>%</small></span><span class="k">lower mean cost on SWE-Bench across three coding agents and five agent–model settings</span></div>
+      <div class="stat"><span class="v" data-stat="cells">30<small> / 30</small></span><span class="k">repository–setting cells where TokenEconomizer is cheaper than default execution</span></div>
+      <div class="stat"><span class="v" data-stat="pass">4<small> of 5</small></span><span class="k">settings where Pass@1 improves over default execution</span></div>
+      <div class="stat"><span class="v" data-stat="transfer-range">6.4–21.2<small>%</small></span><span class="k">lower cost on sequential web development and security auditing</span></div>
+    </div>
+
+    <div class="abstract reveal">
+      <h3>Abstract</h3>
+      <p>Advances in frontier coding agents have sharply increased the token costs of AI-assisted software engineering. Their token efficiency is typically evaluated on isolated tasks, whereas real-world developers use them to continuously build, update, and maintain large-scale projects. This mismatch motivates us to evaluate agents over sequences of realistic coding tasks, where we find that agents exhibit recurring environment-dependent token costs that existing methods struggle to reduce. To minimize these costs, we introduce TokenEconomizer, an external controller that cuts environment-specific token costs over a sequence of tasks. These cuts come from determining (i) which operational micro-skills to inject, (ii) which persistently irrelevant tools to prune, and (iii) when to intervene in unproductive failure loops. Across Claude Code, Codex, and GitHub Copilot CLI paired with frontier models, TokenEconomizer reduces the average token cost by 18.4–30.9% with comparable task success. Savings hold in every repository under every tested agent–model setting and generalize to diverse domains such as sequential web development and security auditing, where costs fall by 6.4–21.2% depending on task structure. Our work establishes adaptive black-box cost control as a promising direction for reducing token costs of coding agents in realistic settings.</p>
+    </div>
+  </div>
+</section>
+
+<!-- =============================================================== motivation -->
+<section id="motivation">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">1</span> Motivation</p>
+    <div class="two-col wide-left">
+      <div class="prose">
+        <h2>Coding agents pay for the same context again and again</h2>
+        <p>Every turn of a coding agent bills a persistent prefix of system instructions and tool schemas, together with an ever-growing history of model outputs and tool interactions, so earlier content is charged repeatedly across the trajectory. Caching discounts this replayed context but does not eliminate its cost.</p>
+        <p>Token efficiency is usually studied one task at a time. Developers, however, use agents to keep building and maintaining the <strong>same codebase</strong>. Within a shared environment, completed executions are reusable experience for future tasks, so we optimize the <strong>cumulative cost of a stream of tasks</strong> rather than treating each execution in isolation.</p>
+      </div>
+      <figure class="fig zoomable reveal" style="margin-top:0">
+        <img src="assets/img/fig_pilot_anatomy.png" alt="Schematic of ten agent turns: each turn re-bills the system and tool prefix plus all earlier reads, searches, edits, and test outputs, so the billed context grows turn by turn." width="1400" height="1010" loading="lazy">
+        <figcaption><b>Anatomy of a billed trajectory</b> (schematic). The persistent prefix and the interaction history accumulate across agent turns.</figcaption>
+      </figure>
+    </div>
+
+    <div class="panel reveal">
+      <div class="panel-head">
+        <div>
+          <h3>Fixed cost-control plugins help in one repository and hurt in the next</h3>
+          <p>Per-repository cache-aware cost change relative to default execution for three popular plugins and TokenEconomizer. Negative is cheaper.</p>
+        </div>
+      </div>
+      <ul class="legend" id="pilot-legend"></ul>
+      <div class="chart" id="pilot-chart" role="img" aria-label="Per-repository cost change of RTK, Serena, RepoMap, and TokenEconomizer relative to default execution. Each fixed plugin raises cost in some repositories and lowers it in others; TokenEconomizer lowers cost in all six, by 21.2 to 40.1 percent, and by 30.9 percent overall."></div>
+      <p class="caption">Each fixed strategy moves cost in both directions. All three reduce cost on Django but increase it on SymPy; on scikit-learn only <b>RTK</b> (command-output compression) helps, while on Sphinx only <b>RepoMap</b> (Aider's structural repository map) does. <b>Serena</b> adds semantic code navigation. TokenEconomizer lowers cost in every repository.</p>
+      <details class="data"><summary>View data</summary><div class="table-scroll" id="pilot-table"></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ profiling -->
+<section id="profiling">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">2</span> Cost profiling</p>
+    <div class="prose">
+      <h2>Default traces reveal three sources of removable cost</h2>
+      <p class="lede">We profiled 60 SWE-Bench Verified tasks, 10 from each of 6 repositories, run by an unmodified agent. Three patterns recur, and each one calls for a decision that adapts to the environment.</p>
+    </div>
+
+    <div class="cards3">
+      <article class="hcard s1 reveal">
+        <span class="big">14→30<small>%</small></span>
+        <p class="unit">of tool calls repeat an action from an earlier task in the same repository, rising as its history grows; only 7% match another repository's history</p>
+        <h3>Operational work repeats</h3>
+        <p>Actions that recur in at least half of a repository's tasks carry 12–28% of the bytes its tool calls send and receive.</p>
+        <p class="then"><b>Micro-skills:</b> learn repository-specific operational knowledge and inject it only when relevant.</p>
+      </article>
+      <article class="hcard s2 reveal">
+        <span class="big">16<small> of 23</small></span>
+        <p class="unit">tool schemas shown to the agent on every turn are never called; no repository invokes more than 7</p>
+        <h3>Most loaded tools go unused</h3>
+        <p>Three tools account for 98% of all calls, and the rest are used sparsely and unevenly across repositories, so a fixed reduced interface could suppress a locally useful tool.</p>
+        <p class="then"><b>Tool pruning:</b> remove tools on evidence, and keep a way to bring them back.</p>
+      </article>
+      <article class="hcard s3 reveal">
+        <span class="big">32<small>%</small></span>
+        <p class="unit">of total spend goes to the 17% of tasks that fail</p>
+        <h3>Failed runs cost disproportionately</h3>
+        <p>How much longer failures run differs by repository (45 versus 20 turns on Matplotlib, 36 versus 31 on Sphinx), and 36 of the 50 successful runs also repeat a failure signature, so neither a universal turn limit nor repetition alone identifies a loop.</p>
+        <p class="then"><b>Failure-loop guard:</b> calibrate to each repository's successful runs, and redirect before stopping.</p>
+      </article>
+    </div>
+
+    <figure class="fig reveal">
+      <div class="two-col" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">
+        <img class="zoomable-img" src="assets/img/fig_pilot_reuse.png" alt="Share of tool calls that repeat an earlier task's action rises with the number of preceding tasks in the same repository and stays low against another repository's history." width="800" height="716" loading="lazy">
+        <img class="zoomable-img" src="assets/img/fig_pilot_tools.png" alt="Grid of 23 loaded tools by repository; most squares are empty, and only a handful of tools are ever called." width="800" height="716" loading="lazy">
+        <img class="zoomable-img" src="assets/img/fig_pilot_failures.png" alt="Failed tasks take a share of cost well above their share of tasks, with longer trajectories in most repositories." width="800" height="716" loading="lazy">
+      </div>
+      <img src="assets/img/fig_pilot_headroom_legend.png" alt="Legend: repository colours for scikit-learn, SymPy, Django, Sphinx, Matplotlib, and xarray." width="1800" height="73" loading="lazy" style="margin-top:8px">
+      <figcaption><b>Three trace-derived sources of headroom</b> across the 60 profiled tasks: actions repeated from earlier tasks in the same repository, with another repository's history as a control (left); loaded tools used by each repository, with frequencies shown by square size (middle); and the cost share and trajectory lengths of failed tasks (right).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- =================================================================== method -->
+<section id="method">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">3</span> Method</p>
+    <div class="prose">
+      <h2>One controller, three meta-strategies, a policy learned for each environment</h2>
+      <p>TokenEconomizer treats the agent as a black box. It acts only through what the harness already exposes, namely the instruction prefix, the loaded tools, and the live event stream, and never changes model weights or agent-loop code. Tasks \(\tau_1,\ldots,\tau_n\) in an environment arrive in order. Before task \(\tau_i\), the controller reads the repository state \(S_{i-1}\) distilled from the tasks completed so far and sets three policies:</p>
+      <div class="eq">\[(\Delta P_i,\ \mathcal{U}_i,\ B_i) \;=\; \mathcal{C}(\tau_i,\ S_{i-1})\]</div>
+      <p class="eq-note">\(\Delta P_i\): the micro-skills activated for this task &nbsp;·&nbsp; \(\mathcal{U}_i\): the tools loaded &nbsp;·&nbsp; \(B_i\): the turn budget that calibrates the failure-loop guard. The controller can always leave the default configuration in place, and its own model calls are charged to the task that triggers them.</p>
+    </div>
+
+    <figure class="fig zoomable reveal">
+      <img src="assets/img/fig_framework_overview.svg" alt="Framework overview: a controller with three meta-strategies (micro-skill injection, tool pruning, failure-loop intervention) acts on an unchanged agent and harness through the instruction prefix between tasks, the loaded tool set before each task, and the live rollout; each completed trace updates the learners." width="1188" height="600" loading="lazy">
+      <figcaption><b>TokenEconomizer</b> applies the same three meta-strategies in every repository, while completed traces refine repository-specific policies over instructions, loaded tools, and live intervention.</figcaption>
+    </figure>
+
+    <div class="strategies reveal">
+      <div class="tabs" role="tablist" aria-label="Meta-strategies">
+        <button class="tab s1" role="tab" id="tab-s1" aria-controls="panel-s1" aria-selected="true"><span class="ix">1</span><span>Micro-skill injection<small>Knowledge · between tasks</small></span></button>
+        <button class="tab s2" role="tab" id="tab-s2" aria-controls="panel-s2" aria-selected="false" tabindex="-1"><span class="ix">2</span><span>Tool pruning<small>Interface · before each task</small></span></button>
+        <button class="tab s3" role="tab" id="tab-s3" aria-controls="panel-s3" aria-selected="false" tabindex="-1"><span class="ix">3</span><span>Failure-loop intervention<small>Control · during the rollout</small></span></button>
+      </div>
+
+      <!-- I. micro-skills -->
+      <div class="tabpanel s1" role="tabpanel" id="panel-s1" aria-labelledby="tab-s1" tabindex="0">
+        <div class="sp-grid">
+          <ol class="steps">
+            <li><h4>Propose</h4><p>Every few tasks, an LLM proposer reads compact digests of recent traces (commands, test invocations, edited files, and errors, but no solutions) and drafts a few one-line operational facts, each paired with executable detectors.</p></li>
+            <li><h4>Check every trace</h4><p>After each task, the detectors (regular expressions or built-in predicates over commands and outputs) test whether the trace exercised the skill, confirmed or contradicted it, and needed it. No model call is involved.</p></li>
+            <li><h4>Activate selectively</h4><p>A skill enters the manual only after confirmations on 3 tasks whose edited files do not overlap, and only while its need rate stays at or above 0.4.</p></li>
+            <li><h4>Retire on contradiction</h4><p>Support decays older evidence and weighs one contradiction as \(\lambda=5\) confirmations; once it drops below zero, the skill is retired for good.</p>
+              <div class="sp-eq">\(q_i(f)=\sum_{j&lt;i}\gamma^{\,i-j}\bigl(\mathbb{1}[\xi_j\ \text{confirms}\ f]-\lambda\,\mathbb{1}[\xi_j\ \text{contradicts}\ f]\bigr)\)</div></li>
+          </ol>
+          <div>
+            <div class="example-head"><h4>Example: one injected skill, one task</h4><span class="meta">sympy-13615 · Claude Code, Opus 4.8</span></div>
+            <div class="skillbox"><span class="tag">INJECTED MICRO-SKILL</span>Besides pytest, tests can be run through the native runner `python -c "import sympy; sympy.test('sympy/.../test_x.py')"` or `python -m sympy.utilities.runtests`.</div>
+            <div class="traces" data-traces="skill"></div>
+            <p style="margin:10px 0 0"><button class="replay" type="button" data-replay="skill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Replay</button></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- II. tool pruning -->
+      <div class="tabpanel s2" role="tabpanel" id="panel-s2" aria-labelledby="tab-s2" tabindex="0" hidden>
+        <div class="sp-grid">
+          <ol class="steps">
+            <li><h4>Protect the core</h4><p>Tools for shell execution and for reading, writing, and editing files are always kept.</p></li>
+            <li><h4>Mask on evidence</h4><p>A tool is masked once 3 consecutive completed tasks have left it uncalled.</p></li>
+            <li><h4>Mask on relevance</h4><p>An LLM judge reviews each never-called tool against the task description, with links to the repository's pull requests, issues, commits, and files masked out.</p></li>
+            <li><h4>Re-audit</h4><p>The full catalog is periodically restored. A tool called during a re-audit is never masked again.</p></li>
+          </ol>
+          <div>
+            <div class="example-head"><h4>Example: the first four Django tasks</h4>
+              <div class="seg" role="group" aria-label="Agent">
+                <button type="button" data-prune="cc" aria-pressed="true">Claude Code</button>
+                <button type="button" data-prune="copilot" aria-pressed="false">Copilot CLI</button>
+              </div>
+            </div>
+            <div class="toolgrid" id="toolgrid" aria-live="polite"></div>
+            <div id="taskbars"></div>
+            <div class="mini-legend"><span><i style="background:var(--m-rtk);opacity:.45"></i>Default</span><span><i style="background:var(--s2)"></i>TokenEconomizer</span><span>first-request prompt tokens · Sonnet 5</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- III. failure-loop intervention -->
+      <div class="tabpanel s3" role="tabpanel" id="panel-s3" aria-labelledby="tab-s3" tabindex="0" hidden>
+        <div class="sp-grid">
+          <ol class="steps">
+            <li><h4>Learn a turn budget</h4><p>From the turn counts of the repository's successful runs so far, with a high percentile \(p\) and a margin \(\beta>1\):</p>
+              <div class="sp-eq">\(B_i=\beta\cdot Q_p\bigl(\{|\xi_j| : j&lt;i,\ y_j=1\}\bigr)\)</div></li>
+            <li><h4>Watch cheaply</h4><p>After each tool call, rule-based checks look for repeated failure signatures, dense error output, or a trajectory past \(B_i\). No model call is involved.</p></li>
+            <li><h4>Judge, then redirect</h4><p>When triggered, an LLM judge reads a compact digest of recent actions. A confident <em>stuck</em> verdict redirects the agent with a summary of what it has tried; if the loop recurs, the rollout ends. Productive or uncertain runs continue.</p></li>
+            <li><h4>Backstop</h4><p>At \(2.5\,B_i\) turns, a forced stop the judge cannot veto applies, but only when edit churn, dense errors, and a repeated failure signature occur together.</p></li>
+          </ol>
+          <div>
+            <div class="example-head"><h4 id="loop-title">Example</h4>
+              <div class="seg" role="group" aria-label="Example">
+                <button type="button" data-loop="redirect" aria-pressed="true">Redirect</button>
+                <button type="button" data-loop="stop" aria-pressed="false">Forced stop</button>
+              </div>
+            </div>
+            <div id="loop-example"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================= micro-skills -->
+<section id="micro-skills">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">4</span> Micro-skills up close</p>
+    <div class="prose">
+      <h2>A skill earns its place in the prompt, and loses it when the evidence turns</h2>
+      <p class="lede">The manual is billed on every turn, so each line must pay for itself. A micro-skill is a single, continually verifiable fact about one environment, such as which test runner works or which setup step is unnecessary, rather than a solution or a general lesson.</p>
+    </div>
+
+    <div class="states reveal">
+      <div class="state">
+        <h4><span class="dot" style="background:var(--muted)"></span>Candidate</h4>
+        <dl><dt>Injected</dt><dd>Never</dd><dt>Moves on when</dt><dd>Confirmed on 3 tasks with non-overlapping edited files</dd></dl>
+        <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="state">
+        <h4><span class="dot" style="background:var(--good)"></span>Confirmed</h4>
+        <dl><dt>Injected</dt><dd>On each task while its need rate is ≥ 0.4 over ≥ 4 exercised tasks; otherwise withheld and rechecked</dd><dt>Moves on when</dt><dd>Support \(q_i(f)<0\), or any contradiction of a high-stakes skill</dd></dl>
+        <span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </div>
+      <div class="state">
+        <h4><span class="dot" style="background:var(--s3)"></span>Retired</h4>
+        <dl><dt>Injected</dt><dd>Never</dd><dt>Moves on when</dt><dd>Never; the proposer may propose a replacement under a new identifier</dd></dl>
+      </div>
+    </div>
+
+    <div class="lc reveal">
+      <div class="lc-list" role="tablist" aria-label="Micro-skill examples" id="lc-list"></div>
+      <div class="lc-detail" role="tabpanel" id="lc-detail" tabindex="0" aria-live="polite"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================== results -->
+<section id="results">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">5</span> Results on SWE-Bench</p>
+    <div class="prose">
+      <h2>Cheaper in every repository, under every agent and model</h2>
+      <p class="lede">Five agent–model settings run the same 277 SWE-Bench tasks from 6 repositories, in each repository's chronological order, with three seeds. Cost is cache-aware and charges every controller call to the task that triggered it.</p>
+    </div>
+
+    <div class="panel reveal">
+      <div class="panel-head">
+        <div>
+          <h3>Cost change and Pass@1 by method</h3>
+          <p>Cost is the paired relative change from high-effort default execution; Pass@1 is the absolute rate. All values are percentages; small numbers give the standard deviation across three seeds. Bold marks, per setting, the highest Pass@1 and the lowest cost among methods whose Pass@1 exceeds default execution; faded costs come with a Pass@1 below default.</p>
+        </div>
+      </div>
+      <div class="table-scroll" id="table1"></div>
+      <p class="caption" style="margin-top:16px">Lowering reasoning effort saves tokens at the price of 1.8–10.3 points of Pass@1, and RTK or RepoMap alone saves inconsistently. TokenEconomizer also combines with either: on Claude Code with Opus 4.8, adding RTK raises the saving from 30.9% to 33.2% with Pass@1 above default.</p>
+    </div>
+
+    <div class="panel reveal" style="padding-bottom:22px">
+      <div class="panel-head" style="margin-bottom:0">
+        <div><h3 style="font-size:16px">Highlight a setting</h3></div>
+        <div class="chips" id="setting-chips" role="group" aria-label="Agent–model setting"></div>
+      </div>
+    </div>
+    <div class="results-grid">
+      <div class="panel reveal">
+        <h3>The savings are consistent</h3>
+        <p class="caption" style="margin:0 0 12px">Cost change in each of the 30 repository–setting cells. TokenEconomizer is cheaper in all 30, by 5.2–40.1%; RTK alone is costlier in 12 and RepoMap alone in 15.</p>
+        <div class="chart" id="strip-chart" role="img" aria-label="Strip plot of per-repository cost changes for five methods across 30 repository-setting cells. All TokenEconomizer cells are below zero; RTK and RepoMap cells straddle zero."></div>
+        <details class="data"><summary>View data</summary><div class="table-scroll" id="strip-table"></div></details>
+      </div>
+      <div class="panel reveal">
+        <h3>Adaptation expands the frontier</h3>
+        <p class="caption" style="margin:0 0 12px">Each method's cost and Pass@1 change from default execution in its setting. TokenEconomizer variants make up every point on the frontier that keeps or improves the default pass rate.</p>
+        <ul class="legend" id="frontier-legend"></ul>
+        <div class="chart" id="frontier-chart" role="img" aria-label="Scatter of cost change against Pass@1 change for every method in five settings. Reduced effort is cheap but loses accuracy; RTK and RepoMap cluster near the default; TokenEconomizer variants sit to the left at or above zero Pass@1 change."></div>
+      </div>
+    </div>
+    <div class="results-grid">
+      <figure class="panel zoomable reveal" style="margin-top:0">
+        <h3>Savings accumulate over the task stream</h3>
+        <p class="caption" style="margin:0 0 12px">TokenEconomizer starts each repository with no traces, so the first tasks can cost more. Every repository is cheaper by the sixth task and stays cheaper, ending with cumulative savings of 16.9–32.0%.</p>
+        <div style="background:var(--figure-bg);border-radius:8px;padding:12px"><img src="assets/img/fig_main_amortization.png" alt="Cumulative cost change of TokenEconomizer over each repository's task stream, averaged over the two Claude Code settings. All six lines start above zero and fall below zero within six tasks." width="900" height="893" loading="lazy" style="max-width:420px;width:100%"></div>
+        <figcaption>Cumulative cost change over each repository's task stream, averaged over the two Claude Code settings.</figcaption>
+      </figure>
+      <div class="panel reveal" style="margin-top:0">
+        <h3>Every meta-strategy contributes</h3>
+        <p class="caption" style="margin:0 0 14px">Each meta-strategy alone on Claude Code. Tool pruning carries the largest share because it acts on every turn of every task, micro-skills follow closely, and the failure-loop guard adds single digits. No variant alone matches the full stack, and Pass@1 stays within 3 points of default throughout.</p>
+        <div class="ablation" id="ablation"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== generalization -->
+<section id="generalization">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">6</span> Generalization</p>
+    <div class="prose">
+      <h2>Savings carry over to web development and security auditing</h2>
+      <p class="lede">Web-Bench tasks build on one continuous project and inherit earlier workspace changes. In the security benchmarks, each task targets a different repository under a fixed audit prompt, so repository-specific micro-skills are switched off and the other two meta-strategies run alone.</p>
+    </div>
+    <div class="gen" id="gen"></div>
+  </div>
+</section>
+
+<!-- ============================================================== limitations -->
+<section id="limitations">
+  <div class="wrap">
+    <p class="eyebrow"><span class="n">7</span> Limitations</p>
+    <div class="prose">
+      <h2>Every decision can be wrong, so every decision can be undone</h2>
+    </div>
+    <div class="limits reveal">
+      <div class="limit" style="border-color:var(--s1)"><h4>A micro-skill can go stale</h4><p>Repositories drift: layouts, test commands, and dependencies change over a stream.</p><span class="fix">Retired once a trace contradicts it.</span></div>
+      <div class="limit" style="border-color:var(--s2)"><h4>A pruned tool can become necessary</h4><p>A tool unused so far may be exactly what a later task needs.</p><span class="fix">Restored at the next re-audit.</span></div>
+      <div class="limit" style="border-color:var(--s3)"><h4>A hard task can look like a loop</h4><p>Some difficult tasks are still progressing when they cross the budget.</p><span class="fix">The guard redirects before it stops, and spares uncertain cases.</span></div>
+    </div>
+    <div class="prose" style="margin-top:28px">
+      <p>Our experiments cover three widely used coding agents but not more minimal harnesses such as <a href="https://github.com/earendil-works/pi">Pi</a>. Because TokenEconomizer relies only on the prompt, the tool configuration, and the event stream, supporting such a harness requires an adapter rather than new meta-strategies. Our SWE-Bench streams consist of related but independent fixes rather than real user sessions; continuous sessions should offer more reusable experience, which makes interactive coding workflows a natural next test.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================= citation -->
+<section id="citation">
+  <div class="wrap">
+    <p class="eyebrow">Citation</p>
+    <h2>Cite this work</h2>
+    <!-- TODO(arxiv): add the arXiv identifier, e.g. journal = {arXiv preprint arXiv:2610.xxxxx}. -->
+    <div class="bib">
+      <button class="copy" type="button" id="copy-bib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span>Copy</span></button>
+<pre id="bibtex">@article{li2026tokeneconomizer,
+  title   = {TokenEconomizer: Experience-Driven Black-Box Cost Control for Coding Agents},
+  author  = {Li, Aaron J. and Xu, Weijia and Singh, Chandan and Chen, Zixiao and
+             Inala, Jeevana Priya and Siska, Charlotte and Tamersoy, Acar and
+             Yu, Bin and Stoica, Ion and Galley, Michel and Gao, Jianfeng},
+  journal = {arXiv preprint},
+  year    = {2026}
+}</pre>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span>TokenEconomizer · UC Berkeley · Microsoft Research · Microsoft Security</span>
+    <span><a href="https://github.com/TokenEconomizer/tokeneconomizer.github.io">Page source</a> · <a href="#top">Back to top</a></span>
+  </div>
+</footer>
+
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+<dialog class="zoom" id="zoom" aria-label="Enlarged figure">
+  <button class="icon-btn" type="button" id="zoom-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  <img id="zoom-img" alt="">
+</dialog>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/main.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"
+  onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}],throwOnError:false})"></script>
+</body>
+</html>
