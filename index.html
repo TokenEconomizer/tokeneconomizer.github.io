@@ -83,14 +83,14 @@
 
     <aside class="glance" aria-label="At a glance">
       <p class="gl-title">AT A GLANCE</p>
-      <svg class="gl-loop" viewBox="0 0 316 150" role="img" aria-label="The coding agent runs a task; its trace goes to TokenEconomizer, which sends back settings for the next task.">
+      <svg class="gl-loop" viewBox="0 0 316 150" role="img" aria-label="The coding agent runs a task; its trace goes to TokenEconomizer, which sends back policies for the next task.">
         <defs>
           <marker id="gl-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L8,4L0,8z" class="gl-arrowhead"/></marker>
         </defs>
         <path id="gl-up" class="gl-path" d="M112,56 C138,6 178,6 204,56" marker-end="url(#gl-arrow)"/>
         <path id="gl-down" class="gl-path gl-path-te" d="M204,94 C178,144 138,144 112,94" marker-end="url(#gl-arrow)"/>
         <text class="gl-lab" x="158" y="14" text-anchor="middle">trace of each task</text>
-        <text class="gl-lab gl-lab-te" x="158" y="146" text-anchor="middle">settings for the next task</text>
+        <text class="gl-lab gl-lab-te" x="158" y="146" text-anchor="middle">policies for the next task</text>
         <rect class="gl-box" x="2" y="46" width="110" height="58" rx="10"/>
         <text class="gl-name" x="57" y="71" text-anchor="middle">Coding agent</text>
         <text class="gl-sub" x="57" y="89" text-anchor="middle">unchanged</text>
@@ -126,9 +126,9 @@
 <section id="overview" style="padding-top:56px">
   <div class="wrap">
     <div class="stats reveal">
-      <div class="stat lead"><span class="v" data-stat="swe-range">18.4–30.9<small>%</small></span><span class="k">lower mean cost on SWE-Bench across three coding agents and five agent–model settings</span></div>
-      <div class="stat"><span class="v" data-stat="cells">30<small> / 30</small></span><span class="k">repository–setting cells where TokenEconomizer is cheaper than default execution</span></div>
-      <div class="stat"><span class="v" data-stat="pass">4<small> of 5</small></span><span class="k">settings where Pass@1 improves over default execution</span></div>
+      <div class="stat lead"><span class="v" data-stat="swe-range">18.4–30.9<small>%</small></span><span class="k">lower mean cost on SWE-Bench across three coding agents and five agent–model combinations</span></div>
+      <div class="stat"><span class="v" data-stat="cells">30<small> / 30</small></span><span class="k">repository and agent–model combinations where TokenEconomizer is cheaper than default execution</span></div>
+      <div class="stat"><span class="v" data-stat="pass">4<small> of 5</small></span><span class="k">agent–model combinations where Pass@1 improves over default execution</span></div>
     </div>
 
     <div class="abstract reveal">
