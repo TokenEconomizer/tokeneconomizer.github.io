@@ -24,6 +24,7 @@
     medium: { label: "Effort: medium", color: "--m-effort", marker: "triUp" },
     low: { label: "Effort: low", color: "--m-effort", marker: "triDown" },
     rtk: { label: "RTK", color: "--m-rtk", marker: "circle" },
+    serena: { label: "Serena", color: "--m-serena", marker: "triUp" },
     repomap: { label: "RepoMap", color: "--m-repomap", marker: "square" },
     te: { label: "TokenEconomizer", short: "TE", color: "--m-te", marker: "circle" },
     te_rtk: { label: "TE + RTK", color: "--m-te-rtk", marker: "diamond" },
@@ -123,7 +124,8 @@
     resizeTimer = setTimeout(() => charts.forEach((r) => r()), 120);
   });
   const redrawAll = () => charts.forEach((r) => r());
-  $$("details").forEach((d) => d.addEventListener("toggle", () => { if (d.open) redrawAll(); }));
+  // (the fixed-strategy panels hold no chart, so opening one redraws nothing)
+  $$("details:not(.fx)").forEach((d) => d.addEventListener("toggle", () => { if (d.open) redrawAll(); }));
 
   /* ---------------------------------------------------------------- motion helpers */
   // Each animation plays once, when its element first scrolls into view, and is skipped
@@ -275,6 +277,91 @@
     }
     if (state === "waiting") onceVisible(box, play, .35);
     $("#anatomy-replay").addEventListener("click", () => { if (!reduceMotion) play(); });
+  })();
+
+  /* ---------------------------------------------------------------- Figure 2: fixed strategies */
+  // The pilot's per-repository cost change for RTK, Serena, and RepoMap, as lollipops from zero.
+  // The stems grow in on first view; opening a strategy's panel picks it out in the chart.
+  (function pilot() {
+    const P = D.pilot, box = $("#pilot-chart");
+    if (!box) return;
+    const ARMS = ["rtk", "serena", "repomap"];
+    const NAME = { sklearn: "scikit-learn", sympy: "SymPy", django: "Django", sphinx: "Sphinx", matplotlib: "Matplotlib", xarray: "xarray", all: "All 60" };
+    const COLS = [...P.order, "all"];
+    let grow = reduceMotion ? 1 : 0, focus = null, refs = [];
+
+    const legend = $("#pilot-legend");
+    ARMS.forEach((a) => {
+      const li = document.createElement("li");
+      li.append(legendSwatch(METHOD[a].marker, METHOD[a].color), METHOD[a].label);
+      legend.append(li);
+    });
+
+    chart(box, draw);
+    function draw(b, W) {
+      const band = (W - 46 - 8) / 7.5, tilt = band < 62;
+      const m = { l: 46, r: 8, t: 10, b: tilt ? 58 : 32 };
+      const H = Math.round(Math.min(330, Math.max(260, W * .6))) + (tilt ? 20 : 0);
+      const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H }, b);
+      const y = scale(-30, 40, H - m.b, m.t), y0 = y(0);
+      const cx = (i) => m.l + band * (i < 6 ? i + .5 : 7);
+      el("rect", { class: "wash", x: m.l, y: y(40), width: W - m.r - m.l, height: y0 - y(40) }, svg);
+      el("rect", { x: m.l + band * 6.5, y: m.t, width: band, height: H - m.b - m.t, fill: tok("--surface-2") }, svg);
+      const g = el("g", { class: "grid" }, svg);
+      for (const t of [-20, 20, 40]) el("line", { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t) }, g);
+      for (const t of [-20, 0, 20, 40]) text(svg, m.l - 8, y(t) + 4, t ? sign(t, 0) : "0", { "text-anchor": "end" });
+      el("line", { class: "zero", x1: m.l, x2: W - m.r, y1: y0, y2: y0 }, svg);
+      text(svg, W - m.r - 6, y(40) + 15, "costlier", { "text-anchor": "end", "font-size": 11.5 });
+      text(svg, W - m.r - 6, y(-30) - 7, "cheaper", { "text-anchor": "end", "font-size": 11.5, fill: tok("--good") });
+      const yl = text(svg, 0, 0, "Cost change vs. default (%)", { "text-anchor": "middle", class: "ink", "font-size": 12.5, transform: `translate(12 ${(m.t + H - m.b) / 2}) rotate(-90)` });
+      yl.removeAttribute("x"); yl.removeAttribute("y");
+      COLS.forEach((c, i) => {
+        const name = band < 76 && c === "sklearn" ? "sklearn" : NAME[c];
+        const attrs = { class: "ink", "font-size": 12, "font-weight": c === "all" ? 600 : 400 };
+        if (tilt) text(svg, 0, 0, name, { ...attrs, "text-anchor": "end", transform: `translate(${cx(i) + 4} ${H - m.b + 14}) rotate(-40)` });
+        else text(svg, cx(i), H - m.b + 19, name, { ...attrs, "text-anchor": "middle" });
+      });
+      refs = [];
+      ARMS.forEach((a, k) => {
+        const color = tok(METHOD[a].color), dx = (k - 1) * band * .24;
+        const lay = el("g", { "data-arm": a, style: "transition: opacity .2s" }, svg);
+        COLS.forEach((c, i) => {
+          const v = P.cells[c][a], x = cx(i) + dx, yv = y(v);
+          const line = el("line", { x1: x, x2: x, y1: y0, y2: y0, stroke: color, "stroke-width": 3, opacity: .55 }, lay);
+          const head = el("g", {}, lay);
+          marker(head, METHOD[a].marker, x, yv, c === "all" ? 5.2 : 4.6, color);
+          el("rect", { class: "hit", x: x - band * .12, y: Math.min(y0, yv) - 7, width: band * .24, height: Math.abs(yv - y0) + 14, "data-tip": `${sw(METHOD[a].color)}<b>${METHOD[a].label}</b> · ${c === "all" ? "all 60 tasks" : NAME[c]}<br><span class="tt-v">${pct(v)}</span> cost vs. default` }, lay);
+          refs.push({ line, head, y0, yv });
+        });
+      });
+      paint();
+      bindTips(svg);
+    }
+    function paint() {
+      refs.forEach((r) => {
+        r.line.setAttribute("y2", r.y0 + (r.yv - r.y0) * grow);
+        r.head.setAttribute("transform", `translate(0 ${((r.y0 - r.yv) * (1 - grow)).toFixed(2)})`);
+        r.head.setAttribute("opacity", grow > .02 ? 1 : 0);
+      });
+      $$("g[data-arm]", box).forEach((g) => g.setAttribute("opacity", focus && g.dataset.arm !== focus ? .14 : 1));
+    }
+    if (!reduceMotion) onceVisible(box, () => tween(1100, (e) => { grow = e; paint(); }), .4);
+
+    // the panels: each fills in its marker and its result, and picks its strategy out when open
+    const panels = $$("details.fx");
+    panels.forEach((d) => {
+      const a = d.dataset.arm, cells = P.order.map((r) => P.cells[r][a]);
+      const down = cells.filter((v) => v < 0).length, all = P.cells.all[a];
+      $(".fx-mk", d).append(legendSwatch(METHOD[a].marker, METHOD[a].color));
+      $(".fx-res", d).innerHTML = `Cheaper in <b>${down}</b> repositories, costlier in <b>${6 - down}</b>; <b class="${all < 0 ? "down" : "up"}">${pct(all)}</b> on all 60 tasks.`;
+      d.addEventListener("toggle", () => {
+        const open = panels.filter((p) => p.open);
+        focus = d.open ? a : open.length ? open[open.length - 1].dataset.arm : null;
+        paint();
+      });
+    });
+
+    $("#pilot-table").innerHTML = `<table class="t"><thead><tr><th>Repository</th>${ARMS.map((a) => `<th>${METHOD[a].label}</th>`).join("")}</tr></thead><tbody>${COLS.map((c) => `<tr${c === "all" ? ' class="sep"' : ""}><td>${c === "all" ? "All 60 tasks" : NAME[c]}</td>${ARMS.map((a) => `<td>${pct(P.cells[c][a])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   })();
 
   /* ---------------------------------------------------------------- Table 1 */

@@ -467,6 +467,35 @@ table.t thead tr.grp th.col-hi span { border-bottom-color: var(--accent); }
 }
 .why-adapt b { color: var(--ink); font-weight: 600; }
 
+/* ---- motivation: the fixed strategies, one panel each beside the pilot chart -------- */
+.fixed {
+  display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px; align-items: start;
+  margin-top: 22px; padding: 24px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--rule);
+}
+.fx-list { border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+details.fx + details.fx { border-top: 1px solid var(--rule); }
+details.fx > summary {
+  list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+  padding: 13px 16px; font-size: 14px; color: var(--muted);
+}
+details.fx > summary::-webkit-details-marker { display: none; }
+details.fx > summary::before {
+  content: ""; flex: none; width: 7px; height: 7px; margin: 0 2px 2px 0;
+  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); transition: transform .2s;
+}
+details.fx[open] > summary::before { transform: rotate(45deg); }
+details.fx > summary:hover, details.fx[open] > summary { background: var(--surface-2); }
+.fx-mk svg { width: 14px; height: 14px; }
+.fx-name { font-size: 15.5px; font-weight: 600; color: var(--ink); }
+.fx-body { padding: 12px 16px 16px 37px; font-size: 14.5px; line-height: 1.6; color: var(--ink-2); }
+.fx-body p { margin: 0 0 10px; }
+.fx-res b { color: var(--ink); font-weight: 600; }
+.fx-res .up { color: var(--s3); }
+.fx-res .down { color: var(--good); }
+.fx-body a { font-size: 13.5px; }
+.fixed .why-adapt { font-size: 15px; }
+.fixed .legend { margin-bottom: 6px; }
+
 /* numbered discs in the strategy colours */
 .ix {
   flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
@@ -857,7 +886,7 @@ dialog.zoom button { position: absolute; top: 8px; right: 8px; }
 @media (max-width: 980px) {
   .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 44px; }
   .two-col, .two-col.wide-left, .results-grid, .lc { grid-template-columns: minmax(0, 1fr); }
-  .gen, .ablation, .waste, .strategies3 { grid-template-columns: minmax(0, 1fr); }
+  .gen, .ablation, .waste, .strategies3, .fixed { grid-template-columns: minmax(0, 1fr); }
   .ov-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .ov-gap { display: none; }
   .ov-head + .ov-gap + .ov-head { margin: 8px 0 14px; }
@@ -881,7 +910,7 @@ dialog.zoom button { position: absolute; top: 8px; right: 8px; }
   .stats { grid-template-columns: minmax(0, 1fr); }
   .stat { border-left: 0 !important; }
   .stat + .stat { border-top: 1px solid var(--rule); }
-  .panel, .sc, .lc-detail { padding: 18px; }
+  .panel, .sc, .lc-detail, .fixed { padding: 18px; }
   .fig { padding: 14px; }
   .abstract { padding: 20px; }
   .taskbar { grid-template-columns: 70px minmax(0, 1fr) 96px; }

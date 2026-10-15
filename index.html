@@ -36,7 +36,7 @@
 <header class="hero" id="top">
   <div class="wrap topline">
     <a class="brand" href="#top" aria-label="TokenEconomizer, back to top">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#285E9F"/><path d="M11.2 12.8V5.2A7.6 7.6 0 1 0 18.8 12.8Z" fill="#fff"/><path d="M12.8 11.2V3.6A7.6 7.6 0 0 1 20.4 11.2Z" fill="#fff" opacity=".5"/><path d="M6.6 10.4h4.6M8.9 10.4v6" stroke="#285E9F" stroke-width="1.9" stroke-linecap="round"/></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#285E9F"/><path d="M4 10.6v2.8a8 6.6 0 0 0 16 0v-2.8" fill="#9FB8DA"/><ellipse cx="12" cy="10.6" rx="8" ry="6.6" fill="#fff"/><ellipse cx="12" cy="10.6" rx="6" ry="4.9" fill="none" stroke="#285E9F" stroke-width=".9" opacity=".35"/><path d="M10.5 8.1 8.2 10.6l2.3 2.5M13.5 8.1l2.3 2.5-2.3 2.5" fill="none" stroke="#285E9F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       TokenEconomizer
     </a>
     <div class="topline-right">
@@ -170,7 +170,46 @@
         <p class="fix">→ <b>Failure-loop intervention</b></p>
       </article>
     </div>
-    <p class="why-adapt reveal"><b>Why not a fixed strategy?</b> RTK, Serena, and RepoMap each lower cost in some repositories and raise it in others, so TokenEconomizer learns what to do in each repository instead.</p>
+    <h3 class="waste-title">Why not a fixed strategy?</h3>
+    <p class="waste-lede">On the same 60 tasks, we tried three popular open-source plugins, with one configuration for every repository. None of them learns from earlier tasks.</p>
+    <div class="fixed reveal">
+      <div class="fx-side">
+        <div class="fx-list">
+          <details class="fx" name="fixed" data-arm="rtk">
+            <summary><span class="fx-mk"></span><span class="fx-name">RTK</span><span class="fx-tag">Compresses command output</span></summary>
+            <div class="fx-body">
+              <p>Rust Token Killer runs each shell command through a filter that condenses its output, such as test logs, listings, and diffs, before the agent sees it. The agent's tools and prompt stay the same.</p>
+              <p class="fx-res"></p>
+              <a href="https://github.com/rtk-ai/rtk">github.com/rtk-ai/rtk</a>
+            </div>
+          </details>
+          <details class="fx" name="fixed" data-arm="serena">
+            <summary><span class="fx-mk"></span><span class="fx-name">Serena</span><span class="fx-tag">Adds code-navigation tools</span></summary>
+            <div class="fx-body">
+              <p>An MCP server backed by language servers. It adds symbol-level tools, such as finding a definition or its references, and the agent is told to prefer them over its own file reading and search.</p>
+              <p class="fx-res"></p>
+              <a href="https://github.com/oraios/serena">github.com/oraios/serena</a>
+            </div>
+          </details>
+          <details class="fx" name="fixed" data-arm="repomap">
+            <summary><span class="fx-mk"></span><span class="fx-name">RepoMap</span><span class="fx-tag">Adds a repository map</span></summary>
+            <div class="fx-body">
+              <p>Aider's repository map ranks files and symbols by how central they are, favoring names in the task, and adds the top signatures (up to 2,048 tokens) to the agent's instructions, where they are billed on every turn.</p>
+              <p class="fx-res"></p>
+              <a href="https://aider.chat/docs/repomap.html">aider.chat/docs/repomap.html</a>
+            </div>
+          </details>
+        </div>
+        <p class="why-adapt">All three cut cost on Django and raise it on SymPy; on scikit-learn only RTK helps, and on Sphinx only RepoMap. <b>No fixed strategy is cheaper everywhere</b>, so TokenEconomizer learns what to do in each repository instead.</p>
+      </div>
+      <figure class="fig-plain">
+        <div class="fig-head"><span class="fig-title">Cost change of each fixed strategy, by repository</span></div>
+        <ul class="legend" id="pilot-legend"></ul>
+        <div class="chart" id="pilot-chart" role="img" aria-label="Cost change of RTK, Serena, and RepoMap relative to default execution in each of six repositories and on all 60 tasks. Every strategy is cheaper in some repositories and costlier in others."></div>
+        <figcaption>60 profiled SWE-Bench tasks, 10 per repository, relative to default execution. Below zero is cheaper.</figcaption>
+        <details class="data"><summary>Show the numbers</summary><div class="table-scroll" id="pilot-table"></div></details>
+      </figure>
+    </div>
   </div>
 </section>
 

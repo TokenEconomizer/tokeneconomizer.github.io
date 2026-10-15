@@ -1895,6 +1895,53 @@ window.TE_DATA = {
    "Response": "Final output"
   }
  },
+ "pilot": {
+  "order": [
+   "sklearn",
+   "sympy",
+   "django",
+   "sphinx",
+   "matplotlib",
+   "xarray"
+  ],
+  "cells": {
+   "sklearn": {
+    "rtk": -6.9,
+    "serena": 28.6,
+    "repomap": 30.5
+   },
+   "sympy": {
+    "rtk": 7.3,
+    "serena": 30.8,
+    "repomap": 9.8
+   },
+   "django": {
+    "rtk": -19.9,
+    "serena": -15.4,
+    "repomap": -16.2
+   },
+   "sphinx": {
+    "rtk": 0.6,
+    "serena": 2.1,
+    "repomap": -7.5
+   },
+   "matplotlib": {
+    "rtk": -4.9,
+    "serena": -4.8,
+    "repomap": 5.0
+   },
+   "xarray": {
+    "rtk": -16.8,
+    "serena": 4.7,
+    "repomap": -20.2
+   },
+   "all": {
+    "rtk": -6.7,
+    "serena": 6.0,
+    "repomap": -4.7
+   }
+  }
+ },
  "amortization": {
   "django": [
    [
