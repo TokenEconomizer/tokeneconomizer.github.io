@@ -18,6 +18,3 @@ python3 -m http.server 8000   # then open http://localhost:8000
   figures by `scripts/build_page_assets.py` in the paper repository. Re-run that script instead of
   editing the file by hand. The numbers in the prose of `index.html` are written out and must be
   updated by hand.
-- **arXiv link and BibTeX.** Once the paper is on arXiv, replace `XXXX.XXXXX` in the arXiv button's
-  link in `index.html` with its identifier, and add the identifier to the BibTeX entry's `journal`
-  field.
