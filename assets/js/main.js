@@ -198,6 +198,33 @@
     onceVisible($(".stats"), () => tween(1200, fill), .5);
   })();
 
+  /* ---------------------------------------------------------------- teaser */
+  // The code repository README's teaser, as a video (its docs/assets/teaser.py draws both). It
+  // loops while its figure is in view and pauses when scrolled past; the button pauses it for
+  // good, or starts it again. With reduced motion it waits on its poster, the method's last
+  // frame, until the reader presses Play.
+  (function teaser() {
+    const v = $("#teaser-video"), btn = $("#teaser-toggle");
+    if (!v) return;
+    const svg = (body) => `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${body}</svg>`;
+    const LABEL = {
+      pause: svg('<rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>') + "Pause",
+      play: svg('<path d="M7 4.5v15a1 1 0 0 0 1.5.86l12-7.5a1 1 0 0 0 0-1.72l-12-7.5A1 1 0 0 0 7 4.5z"/>') + "Play",
+    };
+    let wanted = !reduceMotion, inView = !("IntersectionObserver" in window);
+    const sync = () => {
+      if (wanted && inView) v.play().catch(() => {}); else v.pause();
+      btn.innerHTML = wanted ? LABEL.pause : LABEL.play;
+    };
+    // The figure, not the video: on a phone the video is wider than its scroller, so less of it shows.
+    if (!inView) new IntersectionObserver((es) => {
+      inView = es[es.length - 1].intersectionRatio >= .4;
+      sync();
+    }, { threshold: .4 }).observe(v.closest("figure"));
+    btn.addEventListener("click", () => { wanted = !wanted; sync(); });
+    sync();
+  })();
+
   /* ---------------------------------------------------------------- Figure 1(a): the billed trajectory */
   // The paper's schematic, redrawn so the turns can build up one at a time: every row is one
   // turn's billed context, and each new turn replays all the earlier ones (hatched).

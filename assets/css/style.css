@@ -367,6 +367,13 @@ figcaption, .caption { margin-top: 14px; color: var(--muted); font-size: 14.5px;
 figcaption b, .caption b { color: var(--ink); font-weight: 600; }
 .fig figcaption { color: #5d6978; }
 .fig figcaption b { color: #132031; }
+/* The teaser is a video on a light tint, edge to edge in a card that stays light in both themes. */
+.fig.teaser { padding: 0 0 14px; background: #fff; overflow: hidden; }
+.teaser video { display: block; width: 100%; height: auto; }
+.teaser-foot { display: flex; justify-content: flex-end; padding: 10px 22px 0; }
+/* On a phone it keeps a legible size and scrolls sideways. */
+.teaser-scroll { overflow-x: auto; }
+@media (max-width: 760px) { .teaser video { width: 720px; max-width: none; } }
 .panel {
   margin: 36px 0 0; padding: 26px; border-radius: var(--radius);
   background: var(--surface); border: 1px solid var(--rule);
